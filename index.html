@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hakufu — Gestor de manga offline</title>
+  <meta name="description" content="Hakufu es un gestor de manga offline para Windows. Lee PDF, CBZ y CBR sin conexión a internet.">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:       #0D0D0D;
+      --surface:  #111111;
+      --card:     #1A1A1A;
+      --border:   #2A2A2A;
+      --divider:  #222222;
+      --text:     #F0F0F0;
+      --muted:    #666666;
+      --secondary:#AAAAAA;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── HERO ─────────────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .hero-left {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 56px;
+    }
+
+    .hero-right {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 56px 72px;
+    }
+
+    .logo {
+      font-size: clamp(72px, 10vw, 120px);
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -2px;
+    }
+
+    .logo-line {
+      width: 64px;
+      height: 4px;
+      background: var(--text);
+      margin-top: 12px;
+    }
+
+    .hero-tagline {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+
+    .hero-footer {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .hero-footer a {
+      color: var(--muted);
+      text-decoration: none;
+    }
+    .hero-footer a:hover { color: var(--secondary); }
+
+    .hero-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 32px;
+    }
+
+    .hero-desc {
+      font-size: clamp(28px, 3.5vw, 42px);
+      font-weight: 300;
+      line-height: 1.25;
+      color: var(--text);
+      margin-bottom: 48px;
+    }
+
+    .hero-desc strong {
+      font-weight: 700;
+    }
+
+    .btn-download {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--text);
+      color: #0A0A0A;
+      border: none;
+      padding: 16px 32px;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+      text-decoration: none;
+    }
+    .btn-download:hover { background: #CCCCCC; }
+    .btn-download:active { background: #AAAAAA; }
+
+    .btn-download svg {
+      flex-shrink: 0;
+    }
+
+    .version-label {
+      margin-top: 16px;
+      font-size: 11px;
+      color: var(--muted);
+      min-height: 16px;
+    }
+
+    .req-label {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* ── FEATURES ─────────────────────────────────────────── */
+    .features {
+      border-top: 1px solid var(--divider);
+      padding: 96px 56px;
+    }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 48px;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+    }
+
+    .feature-card {
+      background: var(--bg);
+      padding: 40px 36px;
+    }
+
+    .feature-num {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 20px;
+      letter-spacing: 1px;
+    }
+
+    .feature-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+
+    .feature-desc {
+      font-size: 13px;
+      color: var(--secondary);
+      line-height: 1.65;
+    }
+
+    /* ── SOCIAL / STATS ───────────────────────────────────── */
+    .social-section {
+      border-top: 1px solid var(--divider);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .social-left {
+      padding: 72px 56px;
+      border-right: 1px solid var(--divider);
+    }
+
+    .social-right {
+      padding: 72px 56px;
+    }
+
+    .social-title {
+      font-size: clamp(24px, 3vw, 36px);
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .social-desc {
+      font-size: 13px;
+      color: var(--secondary);
+      line-height: 1.7;
+    }
+
+    /* ── FORMATS ──────────────────────────────────────────── */
+    .formats {
+      border-top: 1px solid var(--divider);
+      padding: 72px 56px;
+    }
+
+    .formats-row {
+      display: flex;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      margin-top: 32px;
+    }
+
+    .format-item {
+      flex: 1;
+      background: var(--bg);
+      padding: 32px;
+      text-align: center;
+    }
+
+    .format-ext {
+      font-size: 28px;
+      font-weight: 900;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .format-label {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* ── FOOTER ───────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--divider);
+      padding: 40px 56px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-brand {
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 32px;
+    }
+
+    .footer-links a {
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .footer-links a:hover { color: var(--text); }
+
+    .footer-copy {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* ── RESPONSIVE ───────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .hero        { grid-template-columns: 1fr; }
+      .hero-left   { padding: 40px 32px 32px; min-height: auto; }
+      .hero-right  { padding: 40px 32px 56px; }
+      .social-section { grid-template-columns: 1fr; }
+      .social-left { border-right: none; border-bottom: 1px solid var(--divider); padding: 48px 32px; }
+      .social-right { padding: 48px 32px; }
+      .features, .formats { padding: 64px 32px; }
+      footer { flex-direction: column; gap: 24px; text-align: center; }
+      .footer-links { flex-wrap: wrap; justify-content: center; }
+      .formats-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ HERO ═══ -->
+  <section class="hero">
+
+    <!-- Left — branding -->
+    <div class="hero-left">
+      <div>
+        <div class="logo">HAKUFU</div>
+        <div class="logo-line"></div>
+        <p class="hero-tagline">Tu biblioteca de manga offline</p>
+      </div>
+      <div class="hero-footer">
+        <a href="https://danielpozarivera.es/" target="_blank" rel="noopener">por Daniel Poza Rivera</a>
+      </div>
+    </div>
+
+    <!-- Right — CTA -->
+    <div class="hero-right">
+      <p class="hero-label">Aplicación de escritorio · Windows</p>
+
+      <p class="hero-desc">
+        Lee y organiza tu manga<br>
+        <strong>sin conexión a internet.</strong>
+      </p>
+
+      <button class="btn-download" onclick="downloadLatest()" id="btn-dl">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M8 2v8M5 7l3 3 3-3M2 12h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Descargar para Windows
+      </button>
+
+      <p class="version-label" id="version-txt">Comprobando versión…</p>
+      <p class="req-label">Requiere Windows 10 x64 o superior</p>
+    </div>
+
+  </section>
+
+  <!-- ═══ FEATURES ═══ -->
+  <section class="features">
+    <p class="section-label">Características</p>
+    <div class="features-grid">
+
+      <div class="feature-card">
+        <p class="feature-num">01</p>
+        <h3 class="feature-title">100% offline</h3>
+        <p class="feature-desc">Sin servidores, sin telemetría. Tus archivos se quedan en tu disco. Funciona sin conexión a internet.</p>
+      </div>
+
+      <div class="feature-card">
+        <p class="feature-num">02</p>
+        <h3 class="feature-title">Lector integrado</h3>
+        <p class="feature-desc">Lector de páginas con carga anticipada inteligente. Navega con teclado o ratón sin interrupciones.</p>
+      </div>
+
+      <div class="feature-card">
+        <p class="feature-num">03</p>
+        <h3 class="feature-title">Colecciones</h3>
+        <p class="feature-desc">Organiza tu biblioteca en colecciones. Añade, mueve y elimina mangas con control total.</p>
+      </div>
+
+      <div class="feature-card">
+        <p class="feature-num">04</p>
+        <h3 class="feature-title">Progreso de lectura</h3>
+        <p class="feature-desc">Guarda automáticamente la página donde lo dejaste. Retoma cualquier tomo desde donde lo dejaste.</p>
+      </div>
+
+      <div class="feature-card">
+        <p class="feature-num">05</p>
+        <h3 class="feature-title">Tienda integrada</h3>
+        <p class="feature-desc">Accede a tiendas de manga directamente desde la app sin salir de tu biblioteca.</p>
+      </div>
+
+      <div class="feature-card">
+        <p class="feature-num">06</p>
+        <h3 class="feature-title">Tema claro y oscuro</h3>
+        <p class="feature-desc">Cambia entre tema claro y oscuro con un clic. Tu elección se guarda para la próxima sesión.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══ SOCIAL ═══ -->
+  <section class="social-section">
+    <div class="social-left">
+      <p class="section-label">Social</p>
+      <h2 class="social-title">Conecta con otros lectores</h2>
+      <p class="social-desc">
+        Crea un perfil público, añade amigos y comparte tu historial de lectura.
+        Sincroniza tu biblioteca en la nube para ver qué están leyendo.
+      </p>
+    </div>
+    <div class="social-right">
+      <p class="section-label">Nube</p>
+      <h2 class="social-title">Sincronización opcional</h2>
+      <p class="social-desc">
+        Inicia sesión para sincronizar tu biblioteca, progreso e historial.
+        La app funciona completamente sin cuenta — la sincronización es un extra.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══ FORMATS ═══ -->
+  <section class="formats">
+    <p class="section-label">Formatos compatibles</p>
+    <div class="formats-row">
+      <div class="format-item">
+        <div class="format-ext">PDF</div>
+        <div class="format-label">Documento PDF</div>
+      </div>
+      <div class="format-item">
+        <div class="format-ext">CBZ</div>
+        <div class="format-label">Comic Book ZIP</div>
+      </div>
+      <div class="format-item">
+        <div class="format-ext">CBR</div>
+        <div class="format-label">Comic Book RAR / ZIP</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer>
+    <span class="footer-brand">HAKUFU</span>
+    <div class="footer-links">
+      <a href="https://github.com/dap0ry/Hakufu/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="https://github.com/dap0ry/Hakufu" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://danielpozarivera.es/" target="_blank" rel="noopener">Autor</a>
+    </div>
+    <span class="footer-copy">© 2026 Daniel Poza Rivera</span>
+  </footer>
+
+  <script>
+    const REPO = 'dap0ry/Hakufu';
+    let downloadUrl = `https://github.com/${REPO}/releases/latest`;
+
+    async function fetchLatest() {
+      try {
+        const res  = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`);
+        const data = await res.json();
+        const asset = data.assets?.find(a => a.name.endsWith('.zip'));
+
+        if (asset) downloadUrl = asset.browser_download_url;
+
+        const versionEl = document.getElementById('version-txt');
+        if (data.tag_name) {
+          versionEl.textContent = `Versión actual: ${data.tag_name}  ·  ${asset ? formatBytes(asset.size) : ''}`;
+        } else {
+          versionEl.textContent = '';
+        }
+      } catch {
+        document.getElementById('version-txt').textContent = '';
+      }
+    }
+
+    function downloadLatest() {
+      window.location.href = downloadUrl;
+    }
+
+    function formatBytes(bytes) {
+      if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
+      return `${(bytes / 1024).toFixed(0)} KB`;
+    }
+
+    fetchLatest();
+  </script>
+
+</body>
+</html>
