@@ -139,6 +139,19 @@
       color: var(--muted);
     }
 
+    .os-note {
+      margin-top: 14px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 12px;
+      color: var(--secondary);
+      line-height: 1.5;
+      max-width: 420px;
+      display: none;
+    }
+    .os-note.visible { display: block; }
+
     /* ── FEATURES ─────────────────────────────────────────── */
     .features {
       border-top: 1px solid var(--divider);
@@ -331,6 +344,7 @@
 
       <p class="version-label" id="version-txt">Comprobando versión…</p>
       <p class="req-label">Requiere Windows 10 x64 o superior</p>
+      <p class="os-note" id="os-note"></p>
     </div>
 
   </section>
@@ -433,6 +447,37 @@
     const REPO = 'dap0ry/Hakufu';
     let downloadUrl = `https://github.com/${REPO}/releases/latest`;
 
+    // Hakufu solo existe como build de Windows — esto es puramente informativo,
+    // el botón de descarga siempre apunta al último .zip de Windows.
+    function detectOS() {
+      const ua = navigator.userAgent;
+      if (/Windows/i.test(ua)) return 'windows';
+      if (/Android/i.test(ua)) return 'android';
+      if (/iPhone|iPad|iPod/i.test(ua)) return 'ios';
+      if (/Mac OS X|Macintosh/i.test(ua)) return 'mac';
+      if (/Linux/i.test(ua)) return 'linux';
+      return 'unknown';
+    }
+
+    function showOsNote() {
+      const os = detectOS();
+      if (os === 'windows') return;
+
+      const labels = {
+        linux: 'Linux',
+        mac: 'macOS',
+        android: 'Android',
+        ios: 'iOS',
+        unknown: 'tu sistema',
+      };
+
+      const note = document.getElementById('os-note');
+      note.textContent =
+        `Detectamos ${labels[os]} — Hakufu es una app de escritorio solo para Windows. ` +
+        `Puedes descargar el .zip igualmente y ejecutarlo con una capa de compatibilidad (p. ej. Wine).`;
+      note.classList.add('visible');
+    }
+
     async function fetchLatest() {
       try {
         const res  = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`);
@@ -462,6 +507,7 @@
     }
 
     fetchLatest();
+    showOsNote();
   </script>
 
 </body>
