@@ -5,6 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Hakufu — Gestor de manga offline</title>
   <meta name="description" content="Hakufu es un gestor de manga offline para Windows, con lector web y copia de seguridad en Google Drive.">
+  <meta name="theme-color" content="#0D0D0D">
+
+  <!-- Añadir a pantalla de inicio (iOS) — sin esto Safari abre como pestaña normal, no como app -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Hakufu">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+  <link rel="manifest" href="/manifest.json">
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -362,12 +372,25 @@
     .status-line.on  { color: var(--success); }
     .status-line.off { color: var(--muted); }
 
-    .reader { flex: 1; display: flex; flex-direction: column; background: #000; }
-    .reader-topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--divider); }
+    /* Pantalla completa de verdad: tapa hasta la topbar de la app. Un toque
+       en la página alterna .controls-hidden — así se lee a página completa
+       y con zoom nativo (pellizcar para acercar), sin nada estorbando. */
+    .reader {
+      position: fixed; inset: 0; z-index: 200;
+      display: flex; flex-direction: column; background: #000;
+    }
+    .reader-topbar, .reader-controls {
+      position: absolute; left: 0; right: 0; z-index: 2;
+      background: rgba(17,17,17,0.9);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .reader-topbar { top: 0; display: flex; align-items: center; justify-content: space-between; padding: max(10px, env(safe-area-inset-top)) 16px 10px; border-bottom: 1px solid var(--divider); }
+    .reader-controls { bottom: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 16px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--divider); font-size: 12px; color: var(--secondary); }
+    .reader.controls-hidden .reader-topbar { opacity: 0; transform: translateY(-100%); pointer-events: none; }
+    .reader.controls-hidden .reader-controls { opacity: 0; transform: translateY(100%); pointer-events: none; }
     .reader-topbar .title { font-size: 13px; }
-    .reader-page { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: pan-y; }
-    .reader-page img, .reader-page canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
-    .reader-controls { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: var(--surface); border-top: 1px solid var(--divider); font-size: 12px; color: var(--secondary); }
+    .reader-page { flex: 1; display: flex; align-items: center; justify-content: center; overflow: auto; }
+    .reader-page img, .reader-page canvas { max-width: 100%; max-height: 100%; object-fit: contain; touch-action: pinch-zoom; }
     .reader-controls button { background: none; border: 1px solid var(--border); color: var(--text); padding: 8px 16px; cursor: pointer; }
 
     /* ── RESPONSIVE ───────────────────────────────────────── */

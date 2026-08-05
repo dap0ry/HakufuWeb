@@ -13,7 +13,7 @@ export async function renderReader(root, mangaId) {
   wrap.className = 'reader';
   wrap.innerHTML = `
     <div class="reader-topbar">
-      <a href="#/library" class="btn-ghost" style="padding:6px 12px;text-decoration:none;">← Biblioteca</a>
+      <button id="exit-btn" class="btn-ghost" style="padding:6px 12px;">✕ Salir</button>
       <span class="title" id="reader-title">Cargando…</span>
       <span></span>
     </div>
@@ -28,6 +28,15 @@ export async function renderReader(root, mangaId) {
 
   const pageEl = wrap.querySelector('#reader-page');
   const titleEl = wrap.querySelector('#reader-title');
+
+  // Toca la página → alterna la barra superior/inferior. Toca un botón → ese
+  // botón hace lo suyo, no también el toggle (por eso stopPropagation en cada uno).
+  wrap.classList.add('controls-hidden');
+  pageEl.addEventListener('click', () => wrap.classList.toggle('controls-hidden'));
+  for (const btn of wrap.querySelectorAll('.reader-topbar button, .reader-controls button')) {
+    btn.addEventListener('click', (e) => e.stopPropagation());
+  }
+  wrap.querySelector('#exit-btn').addEventListener('click', () => { location.hash = '/library'; });
 
   try {
     const library = await api.getLibrary();
@@ -55,6 +64,7 @@ export async function renderReader(root, mangaId) {
       openUnsupported(wrap, blob, manga.title);
     }
   } catch (err) {
+    wrap.classList.remove('controls-hidden'); // sin páginas que ver, no tiene sentido ocultar la salida
     pageEl.innerHTML = `<div class="empty-state">${escapeHtml(err.message)}</div>`;
   }
 }
@@ -145,6 +155,7 @@ async function openCbz(wrap, blob) {
 
 function openUnsupported(wrap, blob, title) {
   const pageEl = wrap.querySelector('#reader-page');
+  wrap.classList.remove('controls-hidden'); // sin paginación, no hay nada que ocultar
   const url = URL.createObjectURL(blob);
   pageEl.innerHTML = `
     <div class="empty-state">
