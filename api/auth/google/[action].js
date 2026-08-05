@@ -16,13 +16,24 @@ module.exports = async (req, res) => {
 // uso ya asociado a un username (ver /api/drive/link-start).
 async function start(req, res) {
   const { state } = req.query;
-  if (!state) return res.status(400).json({ detail: 'Falta el parámetro state' });
+  if (!state) {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.status(400).send(page('Enlace inválido', 'Falta el parámetro state.', false));
+  }
 
   let url;
   try {
     url = buildConsentUrl(state);
   } catch (err) {
-    return res.status(500).json({ detail: err.message });
+    // Casi seguro GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI no están configurados
+    // todavía en Vercel — este endpoint se visita directamente en el
+    // navegador, así que el error debe ser una página legible, no JSON.
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.status(500).send(page(
+      'Google Drive no está disponible todavía',
+      'El servidor de Hakufu aún no tiene configuradas las credenciales de Google. Avisa al desarrollador — no es algo que puedas arreglar tú desde aquí.',
+      false
+    ));
   }
 
   res.writeHead(302, { Location: url });
