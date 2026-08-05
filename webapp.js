@@ -153,6 +153,8 @@ function topbar(active) {
   return bar;
 }
 
+const UNCATEGORIZED_LABEL = 'Sin colección';
+
 async function renderLibrary(container) {
   container.innerHTML = '<h2>Biblioteca</h2><div class="empty-state">Cargando…</div>';
 
@@ -165,6 +167,7 @@ async function renderLibrary(container) {
   }
 
   const mangas = (data && data.mangas) || [];
+  const collections = (data && data.collections) || [];
   container.innerHTML = '<h2>Biblioteca</h2>';
 
   if (mangas.length === 0) {
@@ -174,6 +177,36 @@ async function renderLibrary(container) {
     container.appendChild(empty);
     return;
   }
+
+  // Mismo agrupado que la carpeta de Drive: una sección por colección, con
+  // los mangas sueltos al final bajo "Sin colección" — así la biblioteca web
+  // se ve igual que como queda organizado el respaldo.
+  const byId = new Map(mangas.map((m) => [m.id, m]));
+  const grouped = new Set();
+
+  for (const col of collections) {
+    const items = (col.manga_ids || [])
+      .map((id) => byId.get(id))
+      .filter(Boolean);
+    if (items.length === 0) continue;
+    items.forEach((m) => grouped.add(m.id));
+    container.appendChild(renderMangaSection(col.name || UNCATEGORIZED_LABEL, items));
+  }
+
+  const loose = mangas.filter((m) => !grouped.has(m.id));
+  if (loose.length > 0) {
+    container.appendChild(renderMangaSection(UNCATEGORIZED_LABEL, loose));
+  }
+}
+
+function renderMangaSection(title, mangas) {
+  const section = document.createElement('div');
+  section.style.marginBottom = '32px';
+
+  const heading = document.createElement('h3');
+  heading.textContent = title;
+  heading.style.cssText = 'font-size:13px;color:var(--secondary);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;';
+  section.appendChild(heading);
 
   const grid = document.createElement('div');
   grid.className = 'grid';
@@ -198,7 +231,9 @@ async function renderLibrary(container) {
     });
     grid.appendChild(card);
   }
-  container.appendChild(grid);
+
+  section.appendChild(grid);
+  return section;
 }
 
 function escapeHtml(s) {
