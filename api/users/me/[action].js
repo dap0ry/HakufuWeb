@@ -3,7 +3,7 @@ const { sql } = require('../../../lib/db');
 const { getCurrentUser } = require('../../../lib/auth');
 const { applyCors } = require('../../../lib/cors');
 const { parseMultipart } = require('../../../lib/multipart');
-const { uploadImage } = require('../../../lib/cloudinary');
+const { uploadImage } = require('../../../lib/blob');
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 const ALLOWED_AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif']);
@@ -75,8 +75,9 @@ async function avatar(req, res, me) {
   if (!ALLOWED_AVATAR_TYPES.has(mimeType))
     return res.status(400).json({ detail: 'Formato no soportado. Usa JPG, PNG o GIF' });
 
-  const result = await uploadImage(fileBuffer, mimeType, `hakufu/${me}/avatar`);
-  await sql`update users set avatar_url = ${result.secure_url} where username = ${me}`;
+  const ext = mimeType === 'image/png' ? 'png' : mimeType === 'image/gif' ? 'gif' : 'jpg';
+  const result = await uploadImage(fileBuffer, mimeType, `avatars/${me}.${ext}`);
+  await sql`update users set avatar_url = ${result.url} where username = ${me}`;
 
-  return res.status(200).json({ avatar_url: result.secure_url });
+  return res.status(200).json({ avatar_url: result.url });
 }
