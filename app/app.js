@@ -1,6 +1,9 @@
 import { api, isLoggedIn, setSession, clearSession, getUsername } from './api.js';
-import { renderBackup } from './backup.js';
-import { renderReader } from './reader.js';
+
+// backup.js/reader.js se cargan solo cuando hacen falta — sobre todo reader.js,
+// que además dispara imports pesados desde CDN (pdf.js/JSZip). Cargarlos todos
+// por adelantado (import estático) bloqueaba la primera pintura de la página en
+// conexiones lentas, aunque el visitante ni fuera a leer nada todavía.
 
 const root = document.getElementById('root');
 
@@ -30,9 +33,12 @@ async function render() {
   root.appendChild(page);
 
   if (name === 'backup') {
+    page.innerHTML = '<div class="empty-state">Cargando…</div>';
+    const { renderBackup } = await import('./backup.js');
     renderBackup(page);
   } else if (name === 'read' && param) {
     root.removeChild(page);
+    const { renderReader } = await import('./reader.js');
     renderReader(root, param);
   } else {
     renderLibrary(page);
