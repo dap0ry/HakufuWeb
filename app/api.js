@@ -50,7 +50,7 @@ export const api = {
   getLibrary: () => request('/users/me/library'),
 
   driveStatus: () => request('/drive/status'),
-  driveConnectStart: () => request('/drive/connect/start', { method: 'POST' }),
+  driveConnectStart: () => request('/drive/link-start', { method: 'POST' }),
   driveDisconnect: () => request('/drive/disconnect', { method: 'POST' }),
   driveToken: () => request('/drive/token'),
 };

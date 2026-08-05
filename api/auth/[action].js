@@ -1,13 +1,23 @@
+// /api/auth/login + /api/auth/register in one function (segmento único —
+// Vercel no soporta catch-all [...x] fuera de frameworks como Next.js, solo
+// segmentos dinámicos simples [x], de ahí la reestructuración).
 const { sql } = require('../../lib/db');
-const { hashPassword, makeToken } = require('../../lib/auth');
+const { hashPassword, verifyPassword, makeToken } = require('../../lib/auth');
 const { applyCors } = require('../../lib/cors');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 module.exports = async (req, res) => {
   if (applyCors(req, res)) return;
-  if (req.method !== 'POST') return res.status(405).json({ detail: 'Method not allowed' });
 
+  const { action } = req.query;
+  if (action === 'register' && req.method === 'POST') return register(req, res);
+  if (action === 'login'    && req.method === 'POST') return login(req, res);
+
+  return res.status(404).json({ detail: 'Not found' });
+};
+
+async function register(req, res) {
   const { username, email, password, password_confirm } = req.body || {};
 
   if (typeof username !== 'string' || username.length < 3 || username.length > 30)
@@ -38,4 +48,23 @@ module.exports = async (req, res) => {
     token_type: 'bearer',
     username,
   });
-};
+}
+
+async function login(req, res) {
+  const { username, password } = req.body || {};
+  if (typeof username !== 'string' || typeof password !== 'string')
+    return res.status(401).json({ detail: 'Credenciales incorrectas' });
+
+  const rows = await sql`select username, password_hash from users where username = ${username}`;
+  const user = rows[0];
+  if (!user || !(await verifyPassword(password, user.password_hash)))
+    return res.status(401).json({ detail: 'Credenciales incorrectas' });
+
+  await sql`update users set last_seen = now() where username = ${username}`;
+
+  return res.status(200).json({
+    access_token: makeToken(username),
+    token_type: 'bearer',
+    username: user.username,
+  });
+}

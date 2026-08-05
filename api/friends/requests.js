@@ -1,3 +1,6 @@
+// Static route — cannot share a directory level with a dynamic file ([action].js)
+// next to the [username] folder (Vercel rejects that as a routing conflict), so
+// this one's a plain static file instead.
 const { sql } = require('../../lib/db');
 const { getCurrentUser } = require('../../lib/auth');
 const { applyCors } = require('../../lib/cors');
@@ -15,8 +18,5 @@ module.exports = async (req, res) => {
     join users u on u.username = f.requester
     where f.recipient = ${me} and f.status = 'pending'
   `;
-
-  return res.status(200).json(
-    rows.map((r) => ({ from: r.from, id: r.id, avatar_url: r.avatar_url || '' }))
-  );
+  return res.status(200).json(rows.map((r) => ({ from: r.from, id: r.id, avatar_url: r.avatar_url || '' })));
 };

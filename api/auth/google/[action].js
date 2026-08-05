@@ -1,5 +1,33 @@
+// /api/auth/google/start + /api/auth/google/callback in one function. Same
+// external paths — this is the exact redirect URI registered in Google Cloud
+// Console, unaffected by this internal reorganization.
 const { sql } = require('../../../lib/db');
-const { exchangeCodeForTokens } = require('../../../lib/google');
+const { buildConsentUrl, exchangeCodeForTokens } = require('../../../lib/google');
+
+module.exports = async (req, res) => {
+  const { action } = req.query;
+  if (action === 'start'    && req.method === 'GET') return start(req, res);
+  if (action === 'callback' && req.method === 'GET') return callback(req, res);
+  return res.status(404).json({ detail: 'Not found' });
+};
+
+// Público a propósito — este endpoint solo redirige a Google. La identidad real
+// se resuelve en el callback a partir de `state`, que es un link_code de un solo
+// uso ya asociado a un username (ver /api/drive/link-start).
+async function start(req, res) {
+  const { state } = req.query;
+  if (!state) return res.status(400).json({ detail: 'Falta el parámetro state' });
+
+  let url;
+  try {
+    url = buildConsentUrl(state);
+  } catch (err) {
+    return res.status(500).json({ detail: err.message });
+  }
+
+  res.writeHead(302, { Location: url });
+  res.end();
+}
 
 function page(title, message, ok) {
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
@@ -21,9 +49,7 @@ function page(title, message, ok) {
 </body></html>`;
 }
 
-module.exports = async (req, res) => {
-  if (req.method !== 'GET') return res.status(405).json({ detail: 'Method not allowed' });
-
+async function callback(req, res) {
   const { code, state, error } = req.query;
 
   if (error) {
@@ -45,9 +71,6 @@ module.exports = async (req, res) => {
 
     const tokens = await exchangeCodeForTokens(code);
     if (!tokens.refresh_token) {
-      // Google solo manda refresh_token la primera vez que el usuario concede acceso
-      // (o si se fuerza prompt=consent, que ya hacemos). Si aun así falta, no podemos
-      // renovar el acceso más adelante — mejor fallar claro que guardar algo inútil.
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       return res.status(400).send(page(
         'No se recibió acceso permanente',
@@ -71,4 +94,4 @@ module.exports = async (req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.status(500).send(page('Error', err.message || 'No se pudo completar la conexión.', false));
   }
-};
+}
