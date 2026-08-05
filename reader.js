@@ -1,4 +1,5 @@
 import { api } from './api.js';
+import { getOffline } from './offline-store.js';
 
 // v1 scope: PDF and CBZ render page-by-page in the browser. CBR (RAR) has no
 // reliable pure-JS decoder, so it falls back to a plain download button instead
@@ -46,15 +47,23 @@ export async function renderReader(root, mangaId) {
 
     titleEl.textContent = manga.title || '';
 
-    const { access_token } = await api.driveToken();
-    const resp = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${manga.drive_file_id}?alt=media`,
-      { headers: { Authorization: `Bearer ${access_token}` } }
-    );
-    if (!resp.ok) throw new Error('No se pudo descargar el archivo desde Drive.');
-
-    const contentType = resp.headers.get('Content-Type') || '';
-    const blob = await resp.blob();
+    // Si ya se descargó para offline, se lee de ahí directamente — ni token
+    // de Drive ni red, funciona sin conexión.
+    let blob, contentType;
+    const cached = await getOffline(manga.id);
+    if (cached) {
+      blob = cached.blob;
+      contentType = cached.mimeType || '';
+    } else {
+      const { access_token } = await api.driveToken();
+      const resp = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${manga.drive_file_id}?alt=media`,
+        { headers: { Authorization: `Bearer ${access_token}` } }
+      );
+      if (!resp.ok) throw new Error('No se pudo descargar el archivo desde Drive.');
+      contentType = resp.headers.get('Content-Type') || '';
+      blob = await resp.blob();
+    }
 
     if (contentType.includes('pdf')) {
       await openPdf(wrap, blob);

@@ -1,4 +1,5 @@
 import { api, isLoggedIn, setSession, clearSession, getUsername } from './api.js';
+import { listOfflineIds } from './offline-store.js';
 
 const marketing = document.getElementById('marketing');
 const webapp = document.getElementById('webapp');
@@ -183,6 +184,7 @@ async function renderLibrary(container) {
   // se ve igual que como queda organizado el respaldo.
   const byId = new Map(mangas.map((m) => [m.id, m]));
   const grouped = new Set();
+  const offlineIds = new Set(await listOfflineIds().catch(() => []));
 
   for (const col of collections) {
     const items = (col.manga_ids || [])
@@ -190,16 +192,16 @@ async function renderLibrary(container) {
       .filter(Boolean);
     if (items.length === 0) continue;
     items.forEach((m) => grouped.add(m.id));
-    container.appendChild(renderMangaSection(col.name || UNCATEGORIZED_LABEL, items));
+    container.appendChild(renderMangaSection(col.name || UNCATEGORIZED_LABEL, items, offlineIds));
   }
 
   const loose = mangas.filter((m) => !grouped.has(m.id));
   if (loose.length > 0) {
-    container.appendChild(renderMangaSection(UNCATEGORIZED_LABEL, loose));
+    container.appendChild(renderMangaSection(UNCATEGORIZED_LABEL, loose, offlineIds));
   }
 }
 
-function renderMangaSection(title, mangas) {
+function renderMangaSection(title, mangas, offlineIds = new Set()) {
   const section = document.createElement('div');
   section.style.marginBottom = '32px';
 
@@ -221,6 +223,7 @@ function renderMangaSection(title, mangas) {
           : escapeHtml(manga.title || 'Sin portada')}
       </div>
       <div class="manga-title">${escapeHtml(manga.title || 'Sin título')}</div>
+      ${offlineIds.has(manga.id) ? '<span class="manga-badge">Offline ✓</span>' : ''}
       ${manga.drive_file_id
         ? '<span class="manga-badge">En Drive</span>'
         : '<span class="manga-badge">No respaldado</span>'}
@@ -256,3 +259,7 @@ function safeRender() { render().catch(showFatalError); }
 window.addEventListener('hashchange', safeRender);
 window.addEventListener('unhandledrejection', (e) => showFatalError(e.reason));
 safeRender();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
