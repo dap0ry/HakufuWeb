@@ -2,9 +2,9 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Hakufu — Gestor de manga offline</title>
-  <meta name="description" content="Hakufu es un gestor de manga offline para Windows. Lee PDF, CBZ y CBR sin conexión a internet.">
+  <meta name="description" content="Hakufu es un gestor de manga offline para Windows, con lector web y copia de seguridad en Google Drive.">
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -17,6 +17,8 @@
       --text:     #F0F0F0;
       --muted:    #666666;
       --secondary:#AAAAAA;
+      --success:  #3EA76A;
+      --error:    #E05C5C;
     }
 
     html { scroll-behavior: smooth; }
@@ -28,6 +30,9 @@
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
     }
+
+    a { color: inherit; }
+    button, input { font-family: inherit; }
 
     /* ── HERO ─────────────────────────────────────────────── */
     .hero {
@@ -294,6 +299,77 @@
       color: var(--muted);
     }
 
+    /* ── ACCOUNT BOX (login / register / session) ────────────── */
+    .account-box {
+      margin-top: 28px;
+      padding: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      max-width: 340px;
+    }
+    .account-box h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 14px; }
+    .account-box .field { margin-bottom: 10px; }
+    .account-box label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+    .account-box input[type="text"], .account-box input[type="password"], .account-box input[type="email"] {
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      padding: 9px 11px; width: 100%; font-size: 13px;
+    }
+    .account-box input:focus { outline: 1px solid var(--secondary); }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      background: var(--text); color: #0A0A0A; border: none; padding: 11px 20px;
+      font-weight: 700; font-size: 13px; cursor: pointer; transition: background 0.15s; }
+    .btn:hover { background: #CCCCCC; }
+    .btn:disabled { opacity: 0.5; cursor: default; }
+    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--card); }
+    .btn-danger { background: var(--error); color: #fff; }
+    .account-switch { margin-top: 12px; font-size: 11px; color: var(--muted); }
+    .account-switch button { background: none; border: none; color: var(--text); text-decoration: underline; cursor: pointer; padding: 0; font-size: 11px; }
+    .account-error { font-size: 11px; color: var(--error); margin-top: 8px; }
+    .account-session { font-size: 13px; }
+    .account-session .row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+
+    /* ── WEBAPP (biblioteca / lector / backup) ───────────────── */
+    #webapp { display: none; min-height: 100vh; flex-direction: column; }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px; border-bottom: 1px solid var(--divider); background: var(--surface);
+      position: sticky; top: 0; z-index: 10;
+    }
+    .topbar .brand { font-weight: 900; font-size: 16px; letter-spacing: -0.5px; }
+    .topbar nav { display: flex; gap: 4px; }
+    .topbar nav a { text-decoration: none; font-size: 13px; color: var(--secondary); padding: 8px 12px; border-radius: 4px; }
+    .topbar nav a.active { color: var(--text); background: var(--card); }
+
+    .page { flex: 1; padding: 20px; max-width: 1100px; width: 100%; margin: 0 auto; }
+    .page h2 { font-size: 18px; margin-bottom: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 16px; }
+    .manga-card { cursor: pointer; }
+    .manga-cover {
+      aspect-ratio: 2/3; background: var(--card); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center; overflow: hidden;
+      margin-bottom: 8px; color: var(--muted); font-size: 11px; text-align: center; padding: 8px;
+    }
+    .manga-cover img { width: 100%; height: 100%; object-fit: cover; }
+    .manga-title { font-size: 12px; line-height: 1.4; }
+    .manga-badge { display: inline-block; font-size: 9px; color: var(--muted); border: 1px solid var(--border); padding: 1px 6px; margin-top: 4px; }
+    .empty-state { color: var(--muted); font-size: 13px; padding: 40px 0; text-align: center; }
+
+    .card { background: var(--card); border: 1px solid var(--border); padding: 22px; margin-bottom: 20px; max-width: 520px; }
+    .card h3 { font-size: 14px; margin-bottom: 8px; }
+    .card p { font-size: 12px; color: var(--secondary); line-height: 1.6; margin-bottom: 16px; }
+    .status-line { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+    .status-line.on  { color: var(--success); }
+    .status-line.off { color: var(--muted); }
+
+    .reader { flex: 1; display: flex; flex-direction: column; background: #000; }
+    .reader-topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--divider); }
+    .reader-topbar .title { font-size: 13px; }
+    .reader-page { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: pan-y; }
+    .reader-page img, .reader-page canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .reader-controls { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: var(--surface); border-top: 1px solid var(--divider); font-size: 12px; color: var(--secondary); }
+    .reader-controls button { background: none; border: 1px solid var(--border); color: var(--text); padding: 8px 16px; cursor: pointer; }
+
     /* ── RESPONSIVE ───────────────────────────────────────── */
     @media (max-width: 768px) {
       .hero        { grid-template-columns: 1fr; }
@@ -306,156 +382,158 @@
       footer { flex-direction: column; gap: 24px; text-align: center; }
       .footer-links { flex-wrap: wrap; justify-content: center; }
       .formats-row { flex-direction: column; }
+      .grid { grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 10px; }
     }
   </style>
 </head>
 <body>
 
-  <!-- ═══ HERO ═══ -->
-  <section class="hero">
+  <!-- ═══ MARKETING (portada + login/registro) ═══ -->
+  <div id="marketing">
 
-    <!-- Left — branding -->
-    <div class="hero-left">
-      <div>
-        <div class="logo">HAKUFU</div>
-        <div class="logo-line"></div>
-        <p class="hero-tagline">Tu biblioteca de manga offline</p>
-      </div>
-      <div class="hero-footer">
-        <a href="https://danielpozarivera.es/" target="_blank" rel="noopener">por Daniel Poza Rivera</a>
-      </div>
-    </div>
+    <section class="hero">
 
-    <!-- Right — CTA -->
-    <div class="hero-right">
-      <p class="hero-label">Aplicación de escritorio · Windows</p>
-
-      <p class="hero-desc">
-        Lee y organiza tu manga<br>
-        <strong>sin conexión a internet.</strong>
-      </p>
-
-      <button class="btn-download" onclick="downloadLatest()" id="btn-dl">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M8 2v8M5 7l3 3 3-3M2 12h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        Descargar para Windows
-      </button>
-
-      <p class="version-label" id="version-txt">Comprobando versión…</p>
-      <p class="req-label">Requiere Windows 10 x64 o superior</p>
-      <p class="os-note" id="os-note"></p>
-
-      <p style="margin-top:20px;font-size:12px;">
-        <a href="/app/" style="color:var(--secondary);text-decoration:underline;">
-          ¿Ya usas Hakufu? Lee tu biblioteca desde el navegador →
-        </a>
-      </p>
-    </div>
-
-  </section>
-
-  <!-- ═══ FEATURES ═══ -->
-  <section class="features">
-    <p class="section-label">Características</p>
-    <div class="features-grid">
-
-      <div class="feature-card">
-        <p class="feature-num">01</p>
-        <h3 class="feature-title">100% offline</h3>
-        <p class="feature-desc">Sin servidores, sin telemetría. Tus archivos se quedan en tu disco. Funciona sin conexión a internet.</p>
+      <!-- Left — branding -->
+      <div class="hero-left">
+        <div>
+          <div class="logo">HAKUFU</div>
+          <div class="logo-line"></div>
+          <p class="hero-tagline">Tu biblioteca de manga offline</p>
+        </div>
+        <div class="hero-footer">
+          <a href="https://danielpozarivera.es/" target="_blank" rel="noopener">por Daniel Poza Rivera</a>
+        </div>
       </div>
 
-      <div class="feature-card">
-        <p class="feature-num">02</p>
-        <h3 class="feature-title">Lector integrado</h3>
-        <p class="feature-desc">Lector de páginas con carga anticipada inteligente. Navega con teclado o ratón sin interrupciones.</p>
+      <!-- Right — CTA + cuenta -->
+      <div class="hero-right">
+        <p class="hero-label">Aplicación de escritorio · Windows</p>
+
+        <p class="hero-desc">
+          Lee y organiza tu manga<br>
+          <strong>sin conexión a internet.</strong>
+        </p>
+
+        <button class="btn-download" onclick="downloadLatest()" id="btn-dl">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 2v8M5 7l3 3 3-3M2 12h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Descargar para Windows
+        </button>
+
+        <p class="version-label" id="version-txt">Comprobando versión…</p>
+        <p class="req-label">Requiere Windows 10 x64 o superior</p>
+        <p class="os-note" id="os-note"></p>
+
+        <!-- Cuenta: login/registro o acceso directo a la biblioteca -->
+        <div class="account-box" id="account-box"></div>
       </div>
 
-      <div class="feature-card">
-        <p class="feature-num">03</p>
-        <h3 class="feature-title">Colecciones</h3>
-        <p class="feature-desc">Organiza tu biblioteca en colecciones. Añade, mueve y elimina mangas con control total.</p>
-      </div>
+    </section>
 
-      <div class="feature-card">
-        <p class="feature-num">04</p>
-        <h3 class="feature-title">Progreso de lectura</h3>
-        <p class="feature-desc">Guarda automáticamente la página donde lo dejaste. Retoma cualquier tomo desde donde lo dejaste.</p>
-      </div>
+    <!-- ═══ FEATURES ═══ -->
+    <section class="features">
+      <p class="section-label">Características</p>
+      <div class="features-grid">
 
-      <div class="feature-card">
-        <p class="feature-num">05</p>
-        <h3 class="feature-title">Tienda integrada</h3>
-        <p class="feature-desc">Accede a tiendas de manga directamente desde la app sin salir de tu biblioteca.</p>
-      </div>
+        <div class="feature-card">
+          <p class="feature-num">01</p>
+          <h3 class="feature-title">100% offline</h3>
+          <p class="feature-desc">Sin servidores, sin telemetría. Tus archivos se quedan en tu disco. Funciona sin conexión a internet.</p>
+        </div>
 
-      <div class="feature-card">
-        <p class="feature-num">06</p>
-        <h3 class="feature-title">Tema claro y oscuro</h3>
-        <p class="feature-desc">Cambia entre tema claro y oscuro con un clic. Tu elección se guarda para la próxima sesión.</p>
-      </div>
+        <div class="feature-card">
+          <p class="feature-num">02</p>
+          <h3 class="feature-title">Lector integrado</h3>
+          <p class="feature-desc">Lector de páginas con carga anticipada inteligente. Navega con teclado o ratón sin interrupciones.</p>
+        </div>
 
-    </div>
-  </section>
+        <div class="feature-card">
+          <p class="feature-num">03</p>
+          <h3 class="feature-title">Colecciones</h3>
+          <p class="feature-desc">Organiza tu biblioteca en colecciones. Añade, mueve y elimina mangas con control total.</p>
+        </div>
 
-  <!-- ═══ SOCIAL ═══ -->
-  <section class="social-section">
-    <div class="social-left">
-      <p class="section-label">Social</p>
-      <h2 class="social-title">Conecta con otros lectores</h2>
-      <p class="social-desc">
-        Crea un perfil público, añade amigos y comparte tu historial de lectura.
-        Sincroniza tu biblioteca en la nube para ver qué están leyendo.
-      </p>
-    </div>
-    <div class="social-right">
-      <p class="section-label">Nube</p>
-      <h2 class="social-title">Sincronización opcional</h2>
-      <p class="social-desc">
-        Inicia sesión para sincronizar tu biblioteca, progreso e historial.
-        La app funciona completamente sin cuenta — la sincronización es un extra.
-      </p>
-    </div>
-  </section>
+        <div class="feature-card">
+          <p class="feature-num">04</p>
+          <h3 class="feature-title">Progreso de lectura</h3>
+          <p class="feature-desc">Guarda automáticamente la página donde lo dejaste. Retoma cualquier tomo desde donde lo dejaste.</p>
+        </div>
 
-  <!-- ═══ FORMATS ═══ -->
-  <section class="formats">
-    <p class="section-label">Formatos compatibles</p>
-    <div class="formats-row">
-      <div class="format-item">
-        <div class="format-ext">PDF</div>
-        <div class="format-label">Documento PDF</div>
-      </div>
-      <div class="format-item">
-        <div class="format-ext">CBZ</div>
-        <div class="format-label">Comic Book ZIP</div>
-      </div>
-      <div class="format-item">
-        <div class="format-ext">CBR</div>
-        <div class="format-label">Comic Book RAR / ZIP</div>
-      </div>
-    </div>
-  </section>
+        <div class="feature-card">
+          <p class="feature-num">05</p>
+          <h3 class="feature-title">Copia de seguridad en Drive</h3>
+          <p class="feature-desc">Respalda tus archivos en tu propio Google Drive y léelos desde el navegador, también en el móvil.</p>
+        </div>
 
-  <!-- ═══ FOOTER ═══ -->
-  <footer>
-    <span class="footer-brand">HAKUFU</span>
-    <div class="footer-links">
-      <a href="/app/">Web / móvil</a>
-      <a href="https://github.com/dap0ry/Hakufu/releases" target="_blank" rel="noopener">Releases</a>
-      <a href="https://github.com/dap0ry/Hakufu" target="_blank" rel="noopener">GitHub</a>
-      <a href="https://danielpozarivera.es/" target="_blank" rel="noopener">Autor</a>
-    </div>
-    <span class="footer-copy">© 2026 Daniel Poza Rivera</span>
-  </footer>
+        <div class="feature-card">
+          <p class="feature-num">06</p>
+          <h3 class="feature-title">Tema claro y oscuro</h3>
+          <p class="feature-desc">Cambia entre tema claro y oscuro con un clic. Tu elección se guarda para la próxima sesión.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ═══ SOCIAL ═══ -->
+    <section class="social-section">
+      <div class="social-left">
+        <p class="section-label">Social</p>
+        <h2 class="social-title">Conecta con otros lectores</h2>
+        <p class="social-desc">
+          Crea un perfil público, añade amigos y comparte tu historial de lectura.
+          Sincroniza tu biblioteca en la nube para ver qué están leyendo.
+        </p>
+      </div>
+      <div class="social-right">
+        <p class="section-label">Nube</p>
+        <h2 class="social-title">Sincronización opcional</h2>
+        <p class="social-desc">
+          Inicia sesión (arriba) para sincronizar tu biblioteca, respaldar tus mangas en Drive
+          y leerlos desde cualquier dispositivo. La app de escritorio funciona igual sin cuenta.
+        </p>
+      </div>
+    </section>
+
+    <!-- ═══ FORMATS ═══ -->
+    <section class="formats">
+      <p class="section-label">Formatos compatibles</p>
+      <div class="formats-row">
+        <div class="format-item">
+          <div class="format-ext">PDF</div>
+          <div class="format-label">Documento PDF</div>
+        </div>
+        <div class="format-item">
+          <div class="format-ext">CBZ</div>
+          <div class="format-label">Comic Book ZIP</div>
+        </div>
+        <div class="format-item">
+          <div class="format-ext">CBR</div>
+          <div class="format-label">Comic Book RAR / ZIP</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ FOOTER ═══ -->
+    <footer>
+      <span class="footer-brand">HAKUFU</span>
+      <div class="footer-links">
+        <a href="https://github.com/dap0ry/Hakufu/releases" target="_blank" rel="noopener">Releases</a>
+        <a href="https://github.com/dap0ry/Hakufu" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://danielpozarivera.es/" target="_blank" rel="noopener">Autor</a>
+      </div>
+      <span class="footer-copy">© 2026 Daniel Poza Rivera</span>
+    </footer>
+
+  </div>
+
+  <!-- ═══ WEBAPP (biblioteca / lector / backup) — misma página, se activa al iniciar sesión ═══ -->
+  <div id="webapp"></div>
 
   <script>
     const REPO = 'dap0ry/Hakufu';
     let downloadUrl = `https://github.com/${REPO}/releases/latest`;
 
-    // Hakufu solo existe como build de Windows — esto es puramente informativo,
-    // el botón de descarga siempre apunta al último .zip de Windows.
     function detectOS() {
       const ua = navigator.userAgent;
       if (/Windows/i.test(ua)) return 'windows';
@@ -469,15 +547,7 @@
     function showOsNote() {
       const os = detectOS();
       if (os === 'windows') return;
-
-      const labels = {
-        linux: 'Linux',
-        mac: 'macOS',
-        android: 'Android',
-        ios: 'iOS',
-        unknown: 'tu sistema',
-      };
-
+      const labels = { linux: 'Linux', mac: 'macOS', android: 'Android', ios: 'iOS', unknown: 'tu sistema' };
       const note = document.getElementById('os-note');
       note.textContent =
         `Detectamos ${labels[os]} — Hakufu es una app de escritorio solo para Windows. ` +
@@ -490,23 +560,17 @@
         const res  = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`);
         const data = await res.json();
         const asset = data.assets?.find(a => a.name.endsWith('.zip'));
-
         if (asset) downloadUrl = asset.browser_download_url;
-
         const versionEl = document.getElementById('version-txt');
-        if (data.tag_name) {
-          versionEl.textContent = `Versión actual: ${data.tag_name}  ·  ${asset ? formatBytes(asset.size) : ''}`;
-        } else {
-          versionEl.textContent = '';
-        }
+        versionEl.textContent = data.tag_name
+          ? `Versión actual: ${data.tag_name}  ·  ${asset ? formatBytes(asset.size) : ''}`
+          : '';
       } catch {
         document.getElementById('version-txt').textContent = '';
       }
     }
 
-    function downloadLatest() {
-      window.location.href = downloadUrl;
-    }
+    function downloadLatest() { window.location.href = downloadUrl; }
 
     function formatBytes(bytes) {
       if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
@@ -515,6 +579,12 @@
 
     fetchLatest();
     showOsNote();
+  </script>
+
+  <script type="module" src="webapp.js"></script>
+  <script nomodule>
+    document.getElementById('account-box').innerHTML =
+      '<p style="font-size:12px;color:var(--secondary)">Tu navegador es demasiado antiguo para iniciar sesión aquí. Prueba con una versión reciente de Chrome, Safari o Firefox.</p>';
   </script>
 
 </body>

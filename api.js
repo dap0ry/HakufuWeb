@@ -1,4 +1,4 @@
-// Thin fetch wrapper around the existing /api — shared by app.js, backup.js, reader.js.
+// Thin fetch wrapper around /api — shared by webapp.js, backup.js, reader.js.
 const API_BASE = '/api';
 
 export function getToken() { return localStorage.getItem('hakufu_token'); }
