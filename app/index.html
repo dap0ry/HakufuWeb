@@ -10,7 +10,21 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <div style="display:flex;align-items:center;justify-content:center;min-height:100dvh;color:#666;font-family:system-ui,sans-serif;font-size:13px;">
+      Cargando…
+    </div>
+  </div>
+  <noscript>
+    <div style="padding:24px;font-family:system-ui,sans-serif;color:#F0F0F0;background:#0D0D0D;">
+      Hakufu Web necesita JavaScript activado para funcionar.
+    </div>
+  </noscript>
   <script type="module" src="app.js"></script>
+  <script nomodule>
+    document.getElementById('root').innerHTML =
+      '<div style="padding:24px;font-family:system-ui,sans-serif;color:#F0F0F0;background:#0D0D0D;">' +
+      'Tu navegador es demasiado antiguo para Hakufu Web. Prueba con una versión reciente de Chrome, Safari o Firefox.</div>';
+  </script>
 </body>
 </html>

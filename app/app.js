@@ -186,8 +186,22 @@ function escapeHtml(s) {
   }[c]));
 }
 
-window.addEventListener('hashchange', render);
-render();
+function showFatalError(err) {
+  console.error(err);
+  root.innerHTML = `
+    <div style="padding:24px;font-family:system-ui,sans-serif;color:#F0F0F0;">
+      <p style="margin-bottom:8px;font-weight:600;">Algo falló al cargar Hakufu Web.</p>
+      <p style="color:#AAAAAA;font-size:12px;">${escapeHtml(err && err.message ? err.message : String(err))}</p>
+    </div>
+  `;
+}
+
+function safeRender() { render().catch(showFatalError); }
+
+window.addEventListener('hashchange', safeRender);
+window.addEventListener('unhandledrejection', (e) => showFatalError(e.reason));
+window.addEventListener('error', (e) => showFatalError(e.error || e.message));
+safeRender();
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
