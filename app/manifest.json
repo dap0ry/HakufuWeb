@@ -1,0 +1,11 @@
+{
+  "name": "Hakufu Web",
+  "short_name": "Hakufu",
+  "description": "Lee tu biblioteca de Hakufu desde cualquier dispositivo.",
+  "start_url": "/app/",
+  "scope": "/app/",
+  "display": "standalone",
+  "background_color": "#0D0D0D",
+  "theme_color": "#0D0D0D",
+  "icons": []
+}

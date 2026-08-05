@@ -35,3 +35,25 @@ create table if not exists friendships (
 
 create index if not exists idx_friendships_recipient on friendships(recipient, status);
 create index if not exists idx_friendships_requester  on friendships(requester, status);
+
+-- Copia de seguridad en Google Drive: un refresh_token por usuario (cada persona
+-- conecta su propio Drive). Los access tokens nunca se guardan, se piden a Google
+-- al vuelo a partir del refresh_token (ver /api/drive/token).
+create table if not exists google_connections (
+  username           text primary key references users(username) on delete cascade,
+  refresh_token      text not null,
+  drive_folder_id    text,
+  connected_at       timestamptz not null default now(),
+  updated_at         timestamptz not null default now()
+);
+
+-- Vale de un solo uso, de corta duración, para enlazar el flujo OAuth (que corre en
+-- el navegador del sistema) con la sesión ya autenticada de la app de escritorio,
+-- sin poner el JWT real de 30 días en una URL.
+create table if not exists link_codes (
+  code         text primary key,
+  username     text not null references users(username) on delete cascade,
+  expires_at   timestamptz not null
+);
+
+create index if not exists idx_link_codes_expires on link_codes(expires_at);

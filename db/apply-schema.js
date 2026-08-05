@@ -23,10 +23,18 @@ async function main() {
   const sql = neon(process.env.DATABASE_URL);
   const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
 
-  const statements = schema
+  // Strip full-line comments first — splitting on ";\n" alone leaves them stuck to
+  // the front of the next statement's chunk, so a naive startsWith('--') filter
+  // drops the real statement along with its leading comment.
+  const withoutComments = schema
+    .split('\n')
+    .filter((line) => !line.trim().startsWith('--'))
+    .join('\n');
+
+  const statements = withoutComments
     .split(/;\s*\n/)
     .map((s) => s.trim())
-    .filter((s) => s.length && !s.startsWith('--'));
+    .filter((s) => s.length);
 
   for (const stmt of statements) {
     await sql(stmt);
