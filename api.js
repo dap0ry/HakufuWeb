@@ -1,4 +1,4 @@
-// Thin fetch wrapper around /api — shared by webapp.js, backup.js, reader.js.
+// Thin fetch wrapper around /api — shared by webapp.js, account.js, friends.js, settings.js, reader.js.
 const API_BASE = '/api';
 
 export function getToken() { return localStorage.getItem('hakufu_token'); }
@@ -53,4 +53,17 @@ export const api = {
   driveConnectStart: () => request('/drive/link-start', { method: 'POST' }),
   driveDisconnect: () => request('/drive/disconnect', { method: 'POST' }),
   driveToken: () => request('/drive/token'),
+
+  getProfile: (username) => request(`/users/${encodeURIComponent(username)}`),
+
+  getFriends: () => request('/friends'),
+  getPendingRequests: () => request('/friends/requests'),
+  sendFriendRequest: (username) =>
+    request(`/friends/${encodeURIComponent(username)}/request`, { method: 'POST' }),
+  acceptFriendRequest: (username) =>
+    request(`/friends/${encodeURIComponent(username)}/accept`, { method: 'PUT' }),
+  rejectFriendRequest: (username) =>
+    request(`/friends/${encodeURIComponent(username)}/request`, { method: 'DELETE' }),
+  removeFriend: (username) =>
+    request(`/friends/${encodeURIComponent(username)}`, { method: 'DELETE' }),
 };

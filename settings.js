@@ -4,18 +4,23 @@ import { saveOffline, listOfflineIds, offlineStorageEstimate } from './offline-s
 // Web-only screen: connect/disconnect Google Drive and see status. Uploading
 // manga files themselves only happens from the desktop app (it's the only side
 // with access to the actual files) — this page never uploads anything.
-export async function renderBackup(container) {
-  container.innerHTML = '<h2>Copia de seguridad</h2><div class="empty-state">Comprobando conexión…</div>';
+export async function renderSettings(container) {
+  container.innerHTML = '<h2>Configuración</h2><div class="empty-state">Comprobando conexión…</div>';
 
   let status;
   try {
     status = await api.driveStatus();
   } catch (err) {
-    container.innerHTML = `<h2>Copia de seguridad</h2><div class="empty-state">Error: ${err.message}</div>`;
+    container.innerHTML = `<h2>Configuración</h2><div class="empty-state">Error: ${err.message}</div>`;
     return;
   }
 
-  container.innerHTML = '<h2>Copia de seguridad</h2>';
+  container.innerHTML = '<h2>Configuración</h2>';
+
+  const driveHeading = document.createElement('h3');
+  driveHeading.textContent = 'Copia de seguridad en Drive';
+  driveHeading.style.cssText = 'font-size:13px;color:var(--secondary);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;';
+  container.appendChild(driveHeading);
 
   const card = document.createElement('div');
   card.className = 'card';
@@ -31,7 +36,7 @@ export async function renderBackup(container) {
       e.target.disabled = true;
       try {
         await api.driveDisconnect();
-        renderBackup(container);
+        renderSettings(container);
       } catch (err) {
         alert(err.message);
         e.target.disabled = false;

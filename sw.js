@@ -4,8 +4,8 @@
 // fall back to whatever was last cached. Never touches /api or googleapis.com
 // (those need to stay live, or are handled by offline-store.js's IndexedDB
 // cache instead).
-const CACHE_NAME = 'hakufu-shell-v2';
-const SHELL_FILES = ['/', '/index.html', '/webapp.js', '/api.js', '/backup.js', '/reader.js', '/offline-store.js', '/manifest.json'];
+const CACHE_NAME = 'hakufu-shell-v3';
+const SHELL_FILES = ['/', '/index.html', '/webapp.js', '/api.js', '/account.js', '/friends.js', '/settings.js', '/reader.js', '/offline-store.js', '/manifest.json'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_FILES)).catch(() => {}));

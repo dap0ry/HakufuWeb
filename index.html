@@ -339,19 +339,33 @@
     .account-session { font-size: 13px; }
     .account-session .row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
 
-    /* ── WEBAPP (biblioteca / lector / backup) ───────────────── */
+    /* ── WEBAPP (biblioteca / cuenta / configuración / amigos) ── */
     #webapp { display: none; min-height: 100vh; flex-direction: column; }
     .topbar {
-      display: flex; align-items: center; justify-content: space-between;
+      display: flex; align-items: center;
       padding: 14px 20px; border-bottom: 1px solid var(--divider); background: var(--surface);
       position: sticky; top: 0; z-index: 10;
     }
     .topbar .brand { font-weight: 900; font-size: 16px; letter-spacing: -0.5px; }
-    .topbar nav { display: flex; gap: 4px; }
-    .topbar nav a { text-decoration: none; font-size: 13px; color: var(--secondary); padding: 8px 12px; border-radius: 4px; }
-    .topbar nav a.active { color: var(--text); background: var(--card); }
 
-    .page { flex: 1; padding: 20px; max-width: 1100px; width: 100%; margin: 0 auto; }
+    /* Navegación real de la app: barra fija abajo, como una app móvil de
+       verdad — no una lista de enlaces arriba. */
+    .tabbar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+      display: flex; background: var(--surface); border-top: 1px solid var(--divider);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .tabbar-item {
+      flex: 1; text-align: center; text-decoration: none;
+      font-size: 11px; color: var(--muted); padding: 10px 4px 8px;
+      border-top: 2px solid transparent;
+    }
+    .tabbar-item.active { color: var(--text); border-top-color: var(--text); }
+
+    .page {
+      flex: 1; padding: 20px; padding-bottom: calc(20px + 56px + env(safe-area-inset-bottom));
+      max-width: 1100px; width: 100%; margin: 0 auto;
+    }
     .page h2 { font-size: 18px; margin-bottom: 16px; }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 16px; }
     .manga-card { cursor: pointer; }
@@ -582,7 +596,7 @@
       try {
         const res  = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`);
         const data = await res.json();
-        const asset = data.assets?.find(a => a.name.endsWith('.zip'));
+        const asset = data.assets?.find(a => a.name.endsWith('.exe'));
         if (asset) downloadUrl = asset.browser_download_url;
         const versionEl = document.getElementById('version-txt');
         versionEl.textContent = data.tag_name

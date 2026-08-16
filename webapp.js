@@ -95,7 +95,7 @@ function currentRoute() {
 
 function navigate(path) { location.hash = path; }
 
-const APP_ROUTES = new Set(['library', 'backup', 'read']);
+const APP_ROUTES = new Set(['library', 'account', 'settings', 'friends', 'read']);
 
 async function render() {
   renderAccountBox();
@@ -119,38 +119,50 @@ async function render() {
     return;
   }
 
-  webapp.appendChild(topbar(name));
+  webapp.appendChild(titlebar());
   const page = document.createElement('div');
   page.className = 'page';
   webapp.appendChild(page);
+  webapp.appendChild(tabbar(name));
 
-  if (name === 'backup') {
-    page.innerHTML = '<div class="empty-state">Cargando…</div>';
-    const { renderBackup } = await import('./backup.js');
-    renderBackup(page);
+  page.innerHTML = '<div class="empty-state">Cargando…</div>';
+
+  if (name === 'account') {
+    const { renderAccount } = await import('./account.js');
+    renderAccount(page);
+  } else if (name === 'settings') {
+    const { renderSettings } = await import('./settings.js');
+    renderSettings(page);
+  } else if (name === 'friends') {
+    const { renderFriends } = await import('./friends.js');
+    renderFriends(page);
   } else {
     renderLibrary(page);
   }
 }
 
-function topbar(active) {
+// Barra superior: solo marca, sin navegación — la navegación real vive en
+// la barra inferior (tabbar), como en una app móvil de verdad.
+function titlebar() {
   const bar = document.createElement('div');
   bar.className = 'topbar';
-  bar.innerHTML = `
-    <span class="brand">HAKUFU</span>
-    <nav>
-      <a href="#/library" class="${active === 'library' ? 'active' : ''}">Biblioteca</a>
-      <a href="#/backup" class="${active === 'backup' ? 'active' : ''}">Copia de seguridad</a>
-      <a href="#" id="home-link">← Portada</a>
-      <a href="#" id="logout-link">Salir (${getUsername() || ''})</a>
-    </nav>
-  `;
-  bar.querySelector('#home-link').addEventListener('click', (e) => { e.preventDefault(); navigate(''); });
-  bar.querySelector('#logout-link').addEventListener('click', (e) => {
-    e.preventDefault();
-    clearSession();
-    navigate('');
-  });
+  bar.innerHTML = '<span class="brand">HAKUFU</span>';
+  return bar;
+}
+
+const TABS = [
+  { route: 'library',  label: 'Biblioteca' },
+  { route: 'account',  label: 'Cuenta' },
+  { route: 'settings', label: 'Configuración' },
+  { route: 'friends',  label: 'Amigos' },
+];
+
+function tabbar(active) {
+  const bar = document.createElement('nav');
+  bar.className = 'tabbar';
+  bar.innerHTML = TABS.map((t) => `
+    <a href="#/${t.route}" class="tabbar-item ${active === t.route ? 'active' : ''}">${t.label}</a>
+  `).join('');
   return bar;
 }
 
