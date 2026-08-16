@@ -167,6 +167,18 @@
     }
     .os-note.visible { display: block; }
 
+    /* iPhone (instalación) o app ya instalada sin sesión: portada reducida
+       a solo la marca + el bloque de arriba (instrucciones o login) — nada
+       de secciones de marketing/descarga por debajo. */
+    #marketing.marketing-minimal .features,
+    #marketing.marketing-minimal .social-section,
+    #marketing.marketing-minimal .formats,
+    #marketing.marketing-minimal footer { display: none; }
+
+    .ios-steps { margin-top: 8px; padding-left: 20px; max-width: 380px; }
+    .ios-steps li { font-size: 13px; color: var(--secondary); line-height: 1.6; margin-bottom: 10px; }
+    .ios-steps strong { color: var(--text); }
+
     /* ── FEATURES ─────────────────────────────────────────── */
     .features {
       border-top: 1px solid var(--divider);
@@ -451,27 +463,32 @@
         </div>
       </div>
 
-      <!-- Right — CTA + cuenta -->
+      <!-- Right — CTA (varía según plataforma, ver renderPlatformView) + cuenta -->
       <div class="hero-right">
-        <p class="hero-label">Aplicación de escritorio · Windows</p>
 
-        <p class="hero-desc">
-          Lee y organiza tu manga<br>
-          <strong>sin conexión a internet.</strong>
-        </p>
+        <!-- Windows/escritorio por defecto — reemplazado por JS en iPhone -->
+        <div id="platform-cta">
+          <p class="hero-label">Aplicación de escritorio · Windows</p>
 
-        <button class="btn-download" onclick="downloadLatest()" id="btn-dl">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M8 2v8M5 7l3 3 3-3M2 12h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          Descargar para Windows
-        </button>
+          <p class="hero-desc">
+            Lee y organiza tu manga<br>
+            <strong>sin conexión a internet.</strong>
+          </p>
 
-        <p class="version-label" id="version-txt">Comprobando versión…</p>
-        <p class="req-label">Requiere Windows 10 x64 o superior</p>
-        <p class="os-note" id="os-note"></p>
+          <button class="btn-download" onclick="downloadLatest()" id="btn-dl">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 2v8M5 7l3 3 3-3M2 12h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Descargar para Windows
+          </button>
 
-        <!-- Cuenta: login/registro o acceso directo a la biblioteca -->
+          <p class="version-label" id="version-txt">Comprobando versión…</p>
+          <p class="req-label">Requiere Windows 10 x64 o superior</p>
+          <p class="os-note" id="os-note"></p>
+        </div>
+
+        <!-- Cuenta: login/registro o acceso directo a la biblioteca — oculta
+             en iPhone sin instalar (ver renderPlatformView) -->
         <div class="account-box" id="account-box"></div>
       </div>
 
@@ -593,12 +610,60 @@
     function showOsNote() {
       const os = detectOS();
       if (os === 'windows') return;
-      const labels = { linux: 'Linux', mac: 'macOS', android: 'Android', ios: 'iOS', unknown: 'tu sistema' };
+      const labels = { linux: 'Linux', mac: 'macOS', android: 'Android', unknown: 'tu sistema' };
       const note = document.getElementById('os-note');
       note.textContent =
         `Detectamos ${labels[os]} — Hakufu es una app de escritorio solo para Windows. ` +
         `Puedes descargar el .zip igualmente y ejecutarlo con una capa de compatibilidad (p. ej. Wine).`;
       note.classList.add('visible');
+    }
+
+    // True cuando ya se abrió como app instalada (Compartir → Añadir a
+    // pantalla de inicio en iPhone, o el equivalente de Android/desktop) —
+    // en ese caso la portada de marketing/descarga no debe verse nunca.
+    function isStandalone() {
+      return window.navigator.standalone === true ||
+        window.matchMedia('(display-mode: standalone)').matches;
+    }
+
+    // Decide qué se ve en la portada según plataforma: Windows/otros ven la
+    // descarga de siempre; iPhone (sin instalar) ve solo las instrucciones
+    // de instalación, sin cuenta ni botón de descarga; ya instalada (y sin
+    // sesión) ve solo el login, sin instrucciones ni descarga.
+    function renderPlatformView() {
+      const os = detectOS();
+      const standalone = isStandalone();
+      const marketing = document.getElementById('marketing');
+      const cta = document.getElementById('platform-cta');
+      const accountBox = document.getElementById('account-box');
+
+      marketing.classList.toggle('marketing-minimal', standalone || os === 'ios');
+
+      if (standalone) {
+        cta.style.display = 'none';
+        return;
+      }
+
+      if (os === 'ios') {
+        accountBox.style.display = 'none';
+        cta.innerHTML = `
+          <p class="hero-label">Aplicación móvil · iPhone</p>
+          <p class="hero-desc">
+            Instala Hakufu como una app<br>
+            <strong>desde la pantalla de inicio.</strong>
+          </p>
+          <ol class="ios-steps">
+            <li>Toca el icono de <strong>Compartir</strong> (el cuadrado con la flecha hacia arriba) en la barra de Safari.</li>
+            <li>Elige <strong>«Añadir a pantalla de inicio»</strong>.</li>
+            <li>Ábrela desde el icono de Hakufu — a partir de ahí entrarás directo a tu biblioteca.</li>
+          </ol>
+        `;
+        return;
+      }
+
+      // Windows / resto: la descarga de siempre.
+      fetchLatest();
+      showOsNote();
     }
 
     async function fetchLatest() {
@@ -623,8 +688,7 @@
       return `${(bytes / 1024).toFixed(0)} KB`;
     }
 
-    fetchLatest();
-    showOsNote();
+    renderPlatformView();
   </script>
 
   <script type="module" src="webapp.js"></script>

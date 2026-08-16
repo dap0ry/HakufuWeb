@@ -97,11 +97,24 @@ function navigate(path) { location.hash = path; }
 
 const APP_ROUTES = new Set(['library', 'account', 'settings', 'friends', 'read']);
 
-async function render() {
-  renderAccountBox();
+// Añadida a la pantalla de inicio (Compartir → Añadir a pantalla de inicio
+// en iPhone, o el equivalente de escritorio/Android) — la portada de
+// marketing/descarga no debe verse nunca desde ahí.
+function isStandalone() {
+  return window.navigator.standalone === true ||
+    window.matchMedia('(display-mode: standalone)').matches;
+}
 
+async function render() {
   const { name, param } = currentRoute();
   const wantsApp = APP_ROUTES.has(name);
+
+  if (isStandalone() && isLoggedIn() && !wantsApp) {
+    navigate('/library');
+    return; // el cambio de hash relanza render() con la ruta ya correcta
+  }
+
+  renderAccountBox();
 
   if (!isLoggedIn() || !wantsApp) {
     marketing.style.display = '';
