@@ -1,5 +1,6 @@
 import { api } from './api.js';
 import { getOffline } from './offline-store.js';
+import { downloadFromDropbox } from './dropbox-content.js';
 import { getLocalManga } from './local-library.js';
 
 // v1 scope: PDF and CBZ render page-by-page in the browser. CBR (RAR) has no
@@ -54,7 +55,7 @@ export async function renderReader(root, mangaId) {
       const library = await api.getLibrary();
       const manga = (library.mangas || []).find((m) => m.id === mangaId);
       if (!manga) throw new Error('No se encontró ese manga en tu biblioteca.');
-      if (!manga.drive_file_id) throw new Error('Este manga no está respaldado en Drive.');
+      if (!manga.dropbox_path) throw new Error('Este manga no está respaldado en Dropbox.');
 
       title = manga.title;
 
@@ -65,13 +66,12 @@ export async function renderReader(root, mangaId) {
         blob = cached.blob;
         contentType = cached.mimeType || '';
       } else {
-        const { access_token } = await api.driveToken();
-        const resp = await fetch(
-          `https://www.googleapis.com/drive/v3/files/${manga.drive_file_id}?alt=media`,
-          { headers: { Authorization: `Bearer ${access_token}` } }
-        );
-        if (!resp.ok) throw new Error('No se pudo descargar el archivo desde Drive.');
-        contentType = resp.headers.get('Content-Type') || '';
+        const { access_token } = await api.dropboxToken();
+        const resp = await downloadFromDropbox(access_token, manga.dropbox_path).catch(() => {
+          throw new Error('No se pudo descargar el archivo desde Dropbox.');
+        });
+        const ext = (manga.dropbox_path.split('.').pop() || '').toLowerCase();
+        contentType = ext === 'pdf' ? 'application/pdf' : (ext === 'cbz' || ext === 'zip') ? 'application/zip' : '';
         blob = await resp.blob();
       }
     }

@@ -5,6 +5,7 @@ import {
   listLocalCollections, createLocalCollection, removeLocalCollection, addMangaToCollection,
 } from './local-library.js';
 import { extractCover } from './cover-extract.js';
+import { downloadFromDropbox } from './dropbox-content.js';
 
 const marketing = document.getElementById('marketing');
 const webapp = document.getElementById('webapp');
@@ -388,7 +389,7 @@ function renderMangaSection(title, mangas, offlineIds = new Set()) {
       <span class="manga-badge manga-status">${mangaStatusLabel(manga, isOffline)}</span>
     `;
     card.addEventListener('click', () => {
-      if (!manga.drive_file_id) return; // no respaldado — nada que hacer aquí
+      if (!manga.dropbox_path) return; // no respaldado — nada que hacer aquí
       if (isOffline) { navigate(`/read/${manga.id}`); return; }
       downloadManga(manga, card);
     });
@@ -401,7 +402,7 @@ function renderMangaSection(title, mangas, offlineIds = new Set()) {
 
 function mangaStatusLabel(manga, isOffline) {
   if (isOffline) return 'Offline ✓';
-  if (manga.drive_file_id) return 'Toca para descargar';
+  if (manga.dropbox_path) return 'Toca para descargar';
   return 'No respaldado';
 }
 
@@ -418,14 +419,16 @@ async function downloadManga(manga, card) {
   statusEl.textContent = 'Descargando…';
 
   try {
-    const { access_token } = await api.driveToken();
-    const resp = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${manga.drive_file_id}?alt=media`,
-      { headers: { Authorization: `Bearer ${access_token}` } }
-    );
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const { access_token } = await api.dropboxToken();
+    const resp = await downloadFromDropbox(access_token, manga.dropbox_path);
 
-    const contentType = resp.headers.get('Content-Type') || 'application/octet-stream';
+    // Dropbox no manda Content-Type útil en /files/download — el propio
+    // manga.dropbox_path ya trae la extensión, así que se deduce de ahí en
+    // vez de confiar en la cabecera (a diferencia de Drive, que sí la daba).
+    const ext = (manga.dropbox_path.split('.').pop() || '').toLowerCase();
+    const contentType = ext === 'pdf' ? 'application/pdf'
+      : (ext === 'cbz' || ext === 'zip') ? 'application/zip'
+      : 'application/octet-stream';
     const total = Number(resp.headers.get('Content-Length')) || 0;
     const reader = resp.body.getReader();
     const chunks = [];
