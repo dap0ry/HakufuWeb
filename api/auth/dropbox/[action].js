@@ -1,8 +1,8 @@
-// /api/auth/google/start + /api/auth/google/callback in one function. Same
-// external paths — this is the exact redirect URI registered in Google Cloud
-// Console, unaffected by this internal reorganization.
+// /api/auth/dropbox/start + /api/auth/dropbox/callback in one function. Same
+// external paths — this is the exact redirect URI registered in the Dropbox
+// App Console, unaffected by this internal reorganization.
 const { sql } = require('../../../lib/db');
-const { buildConsentUrl, exchangeCodeForTokens } = require('../../../lib/google');
+const { buildConsentUrl, exchangeCodeForTokens } = require('../../../lib/dropbox');
 
 module.exports = async (req, res) => {
   const { action } = req.query;
@@ -11,9 +11,9 @@ module.exports = async (req, res) => {
   return res.status(404).json({ detail: 'Not found' });
 };
 
-// Público a propósito — este endpoint solo redirige a Google. La identidad real
+// Público a propósito — este endpoint solo redirige a Dropbox. La identidad real
 // se resuelve en el callback a partir de `state`, que es un link_code de un solo
-// uso ya asociado a un username (ver /api/drive/link-start).
+// uso ya asociado a un username (ver /api/dropbox/link-start).
 async function start(req, res) {
   const { state } = req.query;
   if (!state) {
@@ -25,13 +25,13 @@ async function start(req, res) {
   try {
     url = buildConsentUrl(state);
   } catch (err) {
-    // Casi seguro GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI no están configurados
+    // Casi seguro DROPBOX_APP_KEY/APP_SECRET/REDIRECT_URI no están configurados
     // todavía en Vercel — este endpoint se visita directamente en el
     // navegador, así que el error debe ser una página legible, no JSON.
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.status(500).send(page(
-      'Google Drive no está disponible todavía',
-      'El servidor de Hakufu aún no tiene configuradas las credenciales de Google. Avisa al desarrollador — no es algo que puedas arreglar tú desde aquí.',
+      'Dropbox no está disponible todavía',
+      'El servidor de Hakufu aún no tiene configuradas las credenciales de Dropbox. Avisa al desarrollador — no es algo que puedas arreglar tú desde aquí.',
       false
     ));
   }
@@ -65,11 +65,11 @@ async function callback(req, res) {
 
   if (error) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.status(200).send(page('Conexión cancelada', 'No se concedió acceso a Google Drive. Puedes cerrar esta pestaña.', false));
+    return res.status(200).send(page('Conexión cancelada', 'No se concedió acceso a Dropbox. Puedes cerrar esta pestaña.', false));
   }
   if (!code || !state) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.status(400).send(page('Enlace inválido', 'Faltan parámetros en la respuesta de Google.', false));
+    return res.status(400).send(page('Enlace inválido', 'Faltan parámetros en la respuesta de Dropbox.', false));
   }
 
   try {
@@ -77,7 +77,7 @@ async function callback(req, res) {
     const linkRow = codes[0];
     if (!linkRow) {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      return res.status(400).send(page('Enlace caducado', 'Vuelve a pulsar "Conectar Google Drive" desde la app.', false));
+      return res.status(400).send(page('Enlace caducado', 'Vuelve a pulsar "Conectar Dropbox" desde la app.', false));
     }
 
     const tokens = await exchangeCodeForTokens(code);
@@ -85,13 +85,13 @@ async function callback(req, res) {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       return res.status(400).send(page(
         'No se recibió acceso permanente',
-        'Revoca el acceso de Hakufu en tu cuenta de Google (myaccount.google.com/permissions) y vuelve a intentarlo.',
+        'Revoca el acceso de Hakufu en tu cuenta de Dropbox (dropbox.com/account/connected_apps) y vuelve a intentarlo.',
         false
       ));
     }
 
     await sql`
-      insert into google_connections (username, refresh_token, connected_at, updated_at)
+      insert into dropbox_connections (username, refresh_token, connected_at, updated_at)
       values (${linkRow.username}, ${tokens.refresh_token}, now(), now())
       on conflict (username) do update set
         refresh_token = excluded.refresh_token,
@@ -100,7 +100,7 @@ async function callback(req, res) {
     await sql`delete from link_codes where code = ${state}`;
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.status(200).send(page('Conectado ✓', 'Tu Google Drive está conectado a Hakufu. Puedes cerrar esta pestaña.', true));
+    return res.status(200).send(page('Conectado ✓', 'Tu Dropbox está conectado a Hakufu. Puedes cerrar esta pestaña.', true));
   } catch (err) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.status(500).send(page('Error', err.message || 'No se pudo completar la conexión.', false));
