@@ -1,9 +1,10 @@
 import { api, getUsername, clearSession } from './api.js';
 
-// Pestaña "Cuenta": tu propio perfil. Si tienes el perfil marcado como
-// privado, /users/{username} devuelve 403 — no rompemos la pantalla por eso,
-// seguimos mostrando el usuario (ya lo tenemos guardado localmente) y el
-// botón de cerrar sesión igualmente.
+// Pestaña "Cuenta": tu propio perfil (con foto editable) + la conexión con
+// Google Drive. Si tienes el perfil marcado como privado, /users/{username}
+// devuelve 403 — no rompemos la pantalla por eso, seguimos mostrando el
+// usuario (ya lo tenemos guardado localmente) y el resto de la pantalla
+// igualmente.
 export async function renderAccount(container) {
   const username = getUsername() || '';
   container.innerHTML = '<h2>Cuenta</h2><div class="empty-state">Cargando…</div>';
@@ -17,14 +18,23 @@ export async function renderAccount(container) {
   }
 
   container.innerHTML = '<h2>Cuenta</h2>';
+  container.appendChild(renderProfileCard(username, profile, profileError));
 
+  const driveHeading = document.createElement('h3');
+  driveHeading.textContent = 'Google Drive';
+  driveHeading.style.cssText = 'font-size:13px;color:var(--secondary);margin:24px 0 12px;text-transform:uppercase;letter-spacing:0.5px;';
+  container.appendChild(driveHeading);
+  container.appendChild(await renderDriveCard());
+}
+
+function renderProfileCard(username, profile, profileError) {
   const card = document.createElement('div');
   card.className = 'card';
 
   const initial = escapeHtml((username[0] || '?').toUpperCase());
-  const avatarHtml = profile?.avatar_url
-    ? `<img src="${profile.avatar_url}" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;">`
-    : `<div style="width:64px;height:64px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;">${initial}</div>`;
+  const avatarInner = profile?.avatar_url
+    ? `<img src="${profile.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;">`
+    : initial;
 
   const detailHtml = profile
     ? `
@@ -39,18 +49,110 @@ export async function renderAccount(container) {
 
   card.innerHTML = `
     <div style="display:flex;align-items:center;gap:16px;">
-      ${avatarHtml}
-      <div style="font-size:17px;font-weight:700;">${escapeHtml(username)}</div>
+      <button id="avatar-btn" title="Cambiar foto de perfil" style="
+        width:64px;height:64px;border-radius:50%;border:none;padding:0;cursor:pointer;
+        background:var(--border);display:flex;align-items:center;justify-content:center;
+        font-size:22px;font-weight:700;color:var(--text);overflow:hidden;position:relative;flex-shrink:0;">
+        ${avatarInner}
+      </button>
+      <div>
+        <div style="font-size:17px;font-weight:700;">${escapeHtml(username)}</div>
+        <button id="avatar-edit-link" style="background:none;border:none;color:var(--secondary);font-size:12px;
+          text-decoration:underline;cursor:pointer;padding:4px 0;">Cambiar foto</button>
+      </div>
     </div>
+    <input type="file" id="avatar-input" accept="image/jpeg,image/png,image/gif" style="display:none;">
+    <div class="account-error" id="avatar-error"></div>
     ${detailHtml}
     <button class="btn btn-danger" id="logout-btn" style="margin-top:20px;">Cerrar sesión</button>
   `;
-  container.appendChild(card);
+
+  const fileInput = card.querySelector('#avatar-input');
+  const openPicker = () => fileInput.click();
+  card.querySelector('#avatar-btn').addEventListener('click', openPicker);
+  card.querySelector('#avatar-edit-link').addEventListener('click', openPicker);
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const errorEl = card.querySelector('#avatar-error');
+    errorEl.textContent = '';
+
+    if (file.size > 2 * 1024 * 1024) {
+      errorEl.textContent = 'La imagen no puede superar los 2 MB.';
+      fileInput.value = '';
+      return;
+    }
+
+    try {
+      const { avatar_url } = await api.uploadAvatar(file);
+      const avatarBtn = card.querySelector('#avatar-btn');
+      avatarBtn.innerHTML = `<img src="${avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;">`;
+    } catch (err) {
+      errorEl.textContent = err.message;
+    } finally {
+      fileInput.value = '';
+    }
+  });
 
   card.querySelector('#logout-btn').addEventListener('click', () => {
     clearSession();
     location.hash = '';
   });
+
+  return card;
+}
+
+async function renderDriveCard() {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = '<div class="empty-state">Comprobando conexión…</div>';
+
+  let status;
+  try {
+    status = await api.driveStatus();
+  } catch (err) {
+    card.innerHTML = `<div class="empty-state">Error: ${escapeHtml(err.message)}</div>`;
+    return card;
+  }
+
+  if (status.connected) {
+    const connectedAt = status.connected_at ? new Date(status.connected_at).toLocaleDateString() : '';
+    card.innerHTML = `
+      <div class="status-line on">● Google Drive conectado</div>
+      <p>Conectado desde ${connectedAt}. La subida de mangas se hace desde la app de escritorio; aquí puedes leerlos y desconectar la cuenta.</p>
+      <button class="btn btn-danger" id="disconnect-btn">Desconectar</button>
+    `;
+    card.querySelector('#disconnect-btn').addEventListener('click', async (e) => {
+      e.target.disabled = true;
+      try {
+        await api.driveDisconnect();
+        const fresh = await renderDriveCard();
+        card.replaceWith(fresh);
+      } catch (err) {
+        alert(err.message);
+        e.target.disabled = false;
+      }
+    });
+  } else {
+    card.innerHTML = `
+      <div class="status-line off">○ Google Drive no conectado</div>
+      <p>Conecta tu cuenta de Google para leer aquí los mangas que hayas respaldado desde la app de escritorio. Hakufu solo accede a los archivos que él mismo crea en tu Drive.</p>
+      <button class="btn" id="connect-btn">Conectar Google Drive</button>
+    `;
+    card.querySelector('#connect-btn').addEventListener('click', async (e) => {
+      e.target.disabled = true;
+      try {
+        const { link_url } = await api.driveConnectStart();
+        location.href = link_url;
+      } catch (err) {
+        alert(err.message);
+        e.target.disabled = false;
+      }
+    });
+  }
+
+  return card;
 }
 
 function formatUsage(seconds) {

@@ -1,5 +1,5 @@
 import { api, isLoggedIn, setSession, clearSession, getUsername } from './api.js';
-import { listOfflineIds, saveOffline } from './offline-store.js';
+import { listOfflineIds, saveOffline, applyBackground } from './offline-store.js';
 
 const marketing = document.getElementById('marketing');
 const webapp = document.getElementById('webapp');
@@ -192,9 +192,9 @@ const TAB_ICONS = {
 
 const TABS = [
   { route: 'library',  label: 'Biblioteca' },
+  { route: 'friends',  label: 'Amigos' },
   { route: 'account',  label: 'Cuenta' },
   { route: 'settings', label: 'Configuración' },
-  { route: 'friends',  label: 'Amigos' },
 ];
 
 function tabbar(active) {
@@ -366,6 +366,7 @@ function safeRender() { render().catch(showFatalError); }
 window.addEventListener('hashchange', safeRender);
 window.addEventListener('unhandledrejection', (e) => showFatalError(e.reason));
 safeRender();
+applyBackground().catch(() => {}); // fondo opcional (Configuración) — si no hay ninguno, no hace nada
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});

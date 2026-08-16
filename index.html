@@ -44,6 +44,15 @@
     a { color: inherit; }
     button, input { font-family: inherit; }
 
+    /* Fondo personalizado (Configuración): fijo, detrás de todo, opacidad
+       muy baja — se aplica una vez por imagen, sin coste de red ni de
+       repintado en cada página. */
+    #app-background {
+      position: fixed; inset: 0; z-index: -1;
+      background-size: cover; background-position: center;
+      opacity: 0.08; pointer-events: none;
+    }
+
     /* ── HERO ─────────────────────────────────────────────── */
     .hero {
       min-height: 100vh;
@@ -451,6 +460,10 @@
   </style>
 </head>
 <body>
+
+  <!-- Fondo personalizado opcional (Configuración) — muy poca opacidad a
+       propósito: se nota que está, pero no compite con el contenido. -->
+  <div id="app-background"></div>
 
   <!-- ═══ MARKETING (portada + login/registro) ═══ -->
   <div id="marketing">

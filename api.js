@@ -55,6 +55,11 @@ export const api = {
   driveToken: () => request('/drive/token'),
 
   getProfile: (username) => request(`/users/${encodeURIComponent(username)}`),
+  uploadAvatar: (file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request('/users/me/avatar', { method: 'POST', body: form });
+  },
 
   getFriends: () => request('/friends'),
   getPendingRequests: () => request('/friends/requests'),
