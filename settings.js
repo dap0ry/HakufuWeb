@@ -1,11 +1,12 @@
 import { api } from './api.js';
+import { downloadFromDropbox } from './dropbox-content.js';
 import {
   saveOffline, listOfflineIds, offlineStorageEstimate,
   saveBackground, removeBackground, applyBackground,
 } from './offline-store.js';
 
 // Pestaña "Configuración": apariencia (fondo de pantalla) y lectura sin
-// conexión. La conexión con Google Drive en sí vive en Cuenta — aquí solo
+// conexión. La conexión con Dropbox en sí vive en Cuenta — aquí solo
 // se consulta su estado para saber si tiene sentido mostrar la tarjeta de
 // descargas offline.
 export async function renderSettings(container) {
@@ -24,7 +25,7 @@ export async function renderSettings(container) {
 
   let status;
   try {
-    status = await api.driveStatus();
+    status = await api.dropboxStatus();
   } catch (err) {
     const errCard = document.createElement('div');
     errCard.className = 'empty-state';
@@ -38,7 +39,7 @@ export async function renderSettings(container) {
   } else {
     const note = document.createElement('div');
     note.className = 'empty-state';
-    note.textContent = 'Conecta Google Drive desde Cuenta para poder descargar mangas y leerlos sin conexión.';
+    note.textContent = 'Conecta Dropbox desde Cuenta para poder descargar mangas y leerlos sin conexión.';
     container.appendChild(note);
   }
 }
@@ -86,7 +87,7 @@ async function renderBackgroundCard() {
   return card;
 }
 
-// Descarga todo lo respaldado en Drive a este dispositivo (IndexedDB) para
+// Descarga todo lo respaldado en Dropbox a este dispositivo (IndexedDB) para
 // poder leerlo sin conexión — no hay selector de carpeta real posible en
 // Safari/iOS (no soporta File System Access API), así que esto es lo que de
 // verdad hace posible "leer offline en el móvil". (En Biblioteca también se
@@ -108,7 +109,7 @@ async function renderOfflineCard() {
     return card;
   }
 
-  const mangas = (library.mangas || []).filter((m) => m.drive_file_id);
+  const mangas = (library.mangas || []).filter((m) => m.dropbox_path);
   const offlineSet = new Set(offlineIds);
   const pending = mangas.filter((m) => !offlineSet.has(m.id));
 
@@ -133,13 +134,12 @@ async function renderOfflineCard() {
     for (const manga of pending) {
       progressEl.textContent = `Descargando ${done + 1} / ${pending.length} — ${manga.title}`;
       try {
-        const { access_token } = await api.driveToken();
-        const resp = await fetch(
-          `https://www.googleapis.com/drive/v3/files/${manga.drive_file_id}?alt=media`,
-          { headers: { Authorization: `Bearer ${access_token}` } }
-        );
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const mimeType = resp.headers.get('Content-Type') || 'application/octet-stream';
+        const { access_token } = await api.dropboxToken();
+        const resp = await downloadFromDropbox(access_token, manga.dropbox_path);
+        const ext = (manga.dropbox_path.split('.').pop() || '').toLowerCase();
+        const mimeType = ext === 'pdf' ? 'application/pdf'
+          : (ext === 'cbz' || ext === 'zip') ? 'application/zip'
+          : 'application/octet-stream';
         const blob = await resp.blob();
         await saveOffline(manga.id, manga.title, blob, mimeType);
         done++;
