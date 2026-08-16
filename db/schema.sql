@@ -36,13 +36,14 @@ create table if not exists friendships (
 create index if not exists idx_friendships_recipient on friendships(recipient, status);
 create index if not exists idx_friendships_requester  on friendships(requester, status);
 
--- Copia de seguridad en Google Drive: un refresh_token por usuario (cada persona
--- conecta su propio Drive). Los access tokens nunca se guardan, se piden a Google
--- al vuelo a partir del refresh_token (ver /api/drive/token).
-create table if not exists google_connections (
+-- Copia de seguridad en Dropbox: un refresh_token por usuario (cada persona
+-- conecta su propio Dropbox, carpeta dedicada de la app — "App folder" — así
+-- Hakufu solo ve su propia carpeta, nunca el resto del Dropbox del usuario).
+-- Los access tokens nunca se guardan, se piden a Dropbox al vuelo a partir
+-- del refresh_token (ver /api/dropbox/token).
+create table if not exists dropbox_connections (
   username           text primary key references users(username) on delete cascade,
   refresh_token      text not null,
-  drive_folder_id    text,
   connected_at       timestamptz not null default now(),
   updated_at         timestamptz not null default now()
 );
