@@ -1,7 +1,7 @@
 import { api, getUsername, clearSession } from './api.js';
 
 // Pestaña "Cuenta": tu propio perfil (con foto editable) + la conexión con
-// Google Drive. Si tienes el perfil marcado como privado, /users/{username}
+// Dropbox. Si tienes el perfil marcado como privado, /users/{username}
 // devuelve 403 — no rompemos la pantalla por eso, seguimos mostrando el
 // usuario (ya lo tenemos guardado localmente) y el resto de la pantalla
 // igualmente.
@@ -20,11 +20,11 @@ export async function renderAccount(container) {
   container.innerHTML = '<h2>Cuenta</h2>';
   container.appendChild(renderProfileCard(username, profile, profileError));
 
-  const driveHeading = document.createElement('h3');
-  driveHeading.textContent = 'Google Drive';
-  driveHeading.style.cssText = 'font-size:13px;color:var(--secondary);margin:24px 0 12px;text-transform:uppercase;letter-spacing:0.5px;';
-  container.appendChild(driveHeading);
-  container.appendChild(await renderDriveCard());
+  const dropboxHeading = document.createElement('h3');
+  dropboxHeading.textContent = 'Dropbox';
+  dropboxHeading.style.cssText = 'font-size:13px;color:var(--secondary);margin:24px 0 12px;text-transform:uppercase;letter-spacing:0.5px;';
+  container.appendChild(dropboxHeading);
+  container.appendChild(await renderDropboxCard());
 }
 
 function renderProfileCard(username, profile, profileError) {
@@ -103,14 +103,14 @@ function renderProfileCard(username, profile, profileError) {
   return card;
 }
 
-async function renderDriveCard() {
+async function renderDropboxCard() {
   const card = document.createElement('div');
   card.className = 'card';
   card.innerHTML = '<div class="empty-state">Comprobando conexión…</div>';
 
   let status;
   try {
-    status = await api.driveStatus();
+    status = await api.dropboxStatus();
   } catch (err) {
     card.innerHTML = `<div class="empty-state">Error: ${escapeHtml(err.message)}</div>`;
     return card;
@@ -119,15 +119,15 @@ async function renderDriveCard() {
   if (status.connected) {
     const connectedAt = status.connected_at ? new Date(status.connected_at).toLocaleDateString() : '';
     card.innerHTML = `
-      <div class="status-line on">● Google Drive conectado</div>
+      <div class="status-line on">● Dropbox conectado</div>
       <p>Conectado desde ${connectedAt}. La subida de mangas se hace desde la app de escritorio; aquí puedes leerlos y desconectar la cuenta.</p>
       <button class="btn btn-danger" id="disconnect-btn">Desconectar</button>
     `;
     card.querySelector('#disconnect-btn').addEventListener('click', async (e) => {
       e.target.disabled = true;
       try {
-        await api.driveDisconnect();
-        const fresh = await renderDriveCard();
+        await api.dropboxDisconnect();
+        const fresh = await renderDropboxCard();
         card.replaceWith(fresh);
       } catch (err) {
         alert(err.message);
@@ -136,14 +136,14 @@ async function renderDriveCard() {
     });
   } else {
     card.innerHTML = `
-      <div class="status-line off">○ Google Drive no conectado</div>
-      <p>Conecta tu cuenta de Google para leer aquí los mangas que hayas respaldado desde la app de escritorio. Hakufu solo accede a los archivos que él mismo crea en tu Drive.</p>
-      <button class="btn" id="connect-btn">Conectar Google Drive</button>
+      <div class="status-line off">○ Dropbox no conectado</div>
+      <p>Conecta tu cuenta de Dropbox para leer aquí los mangas que hayas respaldado desde la app de escritorio. Hakufu solo accede a su propia carpeta dentro de tu Dropbox, nunca al resto.</p>
+      <button class="btn" id="connect-btn">Conectar Dropbox</button>
     `;
     card.querySelector('#connect-btn').addEventListener('click', async (e) => {
       e.target.disabled = true;
       try {
-        const { link_url } = await api.driveConnectStart();
+        const { link_url } = await api.dropboxConnectStart();
         location.href = link_url;
       } catch (err) {
         alert(err.message);
