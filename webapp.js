@@ -163,6 +163,33 @@ function titlebar() {
   return bar;
 }
 
+// Iconos de línea, hechos con formas simples (circle/line/rect/un solo arco)
+// a propósito — nada de paths complejos a mano, que es fácil que salgan mal
+// sin poder verlos renderizados antes de publicar.
+const TAB_ICONS = {
+  library: `
+    <line x1="3" y1="19.5" x2="19" y2="19.5"/>
+    <rect x="4" y="10" width="3" height="9.5" rx="0.6"/>
+    <rect x="9" y="6" width="3" height="13.5" rx="0.6"/>
+    <rect x="14" y="9" width="3" height="10.5" rx="0.6"/>
+  `,
+  account: `
+    <circle cx="12" cy="8" r="3.5"/>
+    <path d="M5 20c0-4 3-6.5 7-6.5s7 2.5 7 6.5"/>
+  `,
+  settings: `
+    <line x1="4" y1="7" x2="20" y2="7"/><circle cx="14" cy="7" r="1.8"/>
+    <line x1="4" y1="12" x2="20" y2="12"/><circle cx="9" cy="12" r="1.8"/>
+    <line x1="4" y1="17" x2="20" y2="17"/><circle cx="16" cy="17" r="1.8"/>
+  `,
+  friends: `
+    <circle cx="8.5" cy="9" r="3"/>
+    <path d="M2.5 19.5c0-3.6 2.6-6 6-6s6 2.4 6 6"/>
+    <circle cx="17" cy="9.5" r="2.3"/>
+    <path d="M13.5 19.5c0-3 2-5 4.5-5"/>
+  `,
+};
+
 const TABS = [
   { route: 'library',  label: 'Biblioteca' },
   { route: 'account',  label: 'Cuenta' },
@@ -174,7 +201,11 @@ function tabbar(active) {
   const bar = document.createElement('nav');
   bar.className = 'tabbar';
   bar.innerHTML = TABS.map((t) => `
-    <a href="#/${t.route}" class="tabbar-item ${active === t.route ? 'active' : ''}">${t.label}</a>
+    <a href="#/${t.route}" class="tabbar-item ${active === t.route ? 'active' : ''}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+           stroke-linecap="round" stroke-linejoin="round">${TAB_ICONS[t.route]}</svg>
+      ${t.label}
+    </a>
   `).join('');
   return bar;
 }
