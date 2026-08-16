@@ -3,3 +3,5 @@ Thumbs.db
 .vercel
 .env*
 node_modules
+
+.claude/
