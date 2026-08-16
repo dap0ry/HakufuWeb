@@ -1,5 +1,6 @@
 import { api } from './api.js';
 import { getOffline } from './offline-store.js';
+import { getLocalManga } from './local-library.js';
 
 // v1 scope: PDF and CBZ render page-by-page in the browser. CBR (RAR) has no
 // reliable pure-JS decoder, so it falls back to a plain download button instead
@@ -40,37 +41,49 @@ export async function renderReader(root, mangaId) {
   wrap.querySelector('#exit-btn').addEventListener('click', () => { location.hash = '/library'; });
 
   try {
-    const library = await api.getLibrary();
-    const manga = (library.mangas || []).find((m) => m.id === mangaId);
-    if (!manga) throw new Error('No se encontró ese manga en tu biblioteca.');
-    if (!manga.drive_file_id) throw new Error('Este manga no está respaldado en Drive.');
+    // Un manga local (creado desde este propio móvil) nunca pasa por Drive —
+    // se lee directamente de su blob en IndexedDB.
+    const local = await getLocalManga(mangaId);
 
-    titleEl.textContent = manga.title || '';
-
-    // Si ya se descargó para offline, se lee de ahí directamente — ni token
-    // de Drive ni red, funciona sin conexión.
-    let blob, contentType;
-    const cached = await getOffline(manga.id);
-    if (cached) {
-      blob = cached.blob;
-      contentType = cached.mimeType || '';
+    let blob, contentType, title;
+    if (local) {
+      title = local.title;
+      blob = local.fileBlob;
+      contentType = local.mimeType || '';
     } else {
-      const { access_token } = await api.driveToken();
-      const resp = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${manga.drive_file_id}?alt=media`,
-        { headers: { Authorization: `Bearer ${access_token}` } }
-      );
-      if (!resp.ok) throw new Error('No se pudo descargar el archivo desde Drive.');
-      contentType = resp.headers.get('Content-Type') || '';
-      blob = await resp.blob();
+      const library = await api.getLibrary();
+      const manga = (library.mangas || []).find((m) => m.id === mangaId);
+      if (!manga) throw new Error('No se encontró ese manga en tu biblioteca.');
+      if (!manga.drive_file_id) throw new Error('Este manga no está respaldado en Drive.');
+
+      title = manga.title;
+
+      // Si ya se descargó para offline, se lee de ahí directamente — ni token
+      // de Drive ni red, funciona sin conexión.
+      const cached = await getOffline(manga.id);
+      if (cached) {
+        blob = cached.blob;
+        contentType = cached.mimeType || '';
+      } else {
+        const { access_token } = await api.driveToken();
+        const resp = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${manga.drive_file_id}?alt=media`,
+          { headers: { Authorization: `Bearer ${access_token}` } }
+        );
+        if (!resp.ok) throw new Error('No se pudo descargar el archivo desde Drive.');
+        contentType = resp.headers.get('Content-Type') || '';
+        blob = await resp.blob();
+      }
     }
+
+    titleEl.textContent = title || '';
 
     if (contentType.includes('pdf')) {
       await openPdf(wrap, blob);
     } else if (contentType.includes('zip')) {
       await openCbz(wrap, blob);
     } else {
-      openUnsupported(wrap, blob, manga.title);
+      openUnsupported(wrap, blob, title);
     }
   } catch (err) {
     wrap.classList.remove('controls-hidden'); // sin páginas que ver, no tiene sentido ocultar la salida

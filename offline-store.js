@@ -3,11 +3,15 @@
 // mechanism behind "download for offline reading" on iPhone — IndexedDB blobs,
 // not files on disk.
 const DB_NAME = 'hakufu-offline';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE = 'mangas';
 const SETTINGS_STORE = 'settings'; // clave/valor sencillo — hoy solo el fondo de pantalla
+const LOCAL_MANGAS_STORE      = 'localMangas';      // mangas creados desde el propio móvil
+const LOCAL_COLLECTIONS_STORE = 'localCollections'; // colecciones creadas desde el propio móvil
 
-function openDb() {
+// Exportada para que local-library.js pueda abrir sus propias transacciones
+// contra localMangas/localCollections sin duplicar el open()/upgrade.
+export function openDb() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
@@ -17,6 +21,12 @@ function openDb() {
       }
       if (!db.objectStoreNames.contains(SETTINGS_STORE)) {
         db.createObjectStore(SETTINGS_STORE, { keyPath: 'key' });
+      }
+      if (!db.objectStoreNames.contains(LOCAL_MANGAS_STORE)) {
+        db.createObjectStore(LOCAL_MANGAS_STORE, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(LOCAL_COLLECTIONS_STORE)) {
+        db.createObjectStore(LOCAL_COLLECTIONS_STORE, { keyPath: 'id' });
       }
     };
     req.onsuccess = () => resolve(req.result);
