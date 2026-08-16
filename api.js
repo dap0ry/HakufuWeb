@@ -49,10 +49,10 @@ export const api = {
 
   getLibrary: () => request('/users/me/library'),
 
-  driveStatus: () => request('/drive/status'),
-  driveConnectStart: () => request('/drive/link-start', { method: 'POST' }),
-  driveDisconnect: () => request('/drive/disconnect', { method: 'POST' }),
-  driveToken: () => request('/drive/token'),
+  dropboxStatus: () => request('/dropbox/status'),
+  dropboxConnectStart: () => request('/dropbox/link-start', { method: 'POST' }),
+  dropboxDisconnect: () => request('/dropbox/disconnect', { method: 'POST' }),
+  dropboxToken: () => request('/dropbox/token'),
 
   getProfile: (username) => request(`/users/${encodeURIComponent(username)}`),
   uploadAvatar: (file) => {
