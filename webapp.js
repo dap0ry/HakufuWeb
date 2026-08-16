@@ -1,5 +1,5 @@
 import { api, isLoggedIn, setSession, clearSession, getUsername } from './api.js';
-import { listOfflineIds } from './offline-store.js';
+import { listOfflineIds, saveOffline } from './offline-store.js';
 
 const marketing = document.getElementById('marketing');
 const webapp = document.getElementById('webapp');
@@ -226,29 +226,80 @@ function renderMangaSection(title, mangas, offlineIds = new Set()) {
   grid.className = 'grid';
 
   for (const manga of mangas) {
+    const isOffline = offlineIds.has(manga.id);
     const card = document.createElement('div');
     card.className = 'manga-card';
     card.innerHTML = `
-      <div class="manga-cover">
+      <div class="manga-cover ${isOffline ? '' : 'manga-cover-locked'}">
         ${manga.cover_cloudinary_url
           ? `<img src="${manga.cover_cloudinary_url}" alt="" loading="lazy">`
           : escapeHtml(manga.title || 'Sin portada')}
+        <div class="manga-progress" style="display:none;"><div class="manga-progress-fill"></div></div>
       </div>
       <div class="manga-title">${escapeHtml(manga.title || 'Sin título')}</div>
-      ${offlineIds.has(manga.id) ? '<span class="manga-badge">Offline ✓</span>' : ''}
-      ${manga.drive_file_id
-        ? '<span class="manga-badge">En Drive</span>'
-        : '<span class="manga-badge">No respaldado</span>'}
+      <span class="manga-badge manga-status">${mangaStatusLabel(manga, isOffline)}</span>
     `;
     card.addEventListener('click', () => {
-      if (!manga.drive_file_id) return;
-      navigate(`/read/${manga.id}`);
+      if (!manga.drive_file_id) return; // no respaldado — nada que hacer aquí
+      if (isOffline) { navigate(`/read/${manga.id}`); return; }
+      downloadManga(manga, card);
     });
     grid.appendChild(card);
   }
 
   section.appendChild(grid);
   return section;
+}
+
+function mangaStatusLabel(manga, isOffline) {
+  if (isOffline) return 'Offline ✓';
+  if (manga.drive_file_id) return 'Toca para descargar';
+  return 'No respaldado';
+}
+
+// Descarga un manga individual con progreso real (a partir de Content-Length)
+// y lo guarda en la caché offline del dispositivo — no crea ficheros
+// visibles en ningún sitio (Safari/iOS no lo permite), pero deja el manga
+// disponible para leer sin conexión. Al terminar, abre el lector.
+async function downloadManga(manga, card) {
+  const progressWrap = card.querySelector('.manga-progress');
+  const progressFill = card.querySelector('.manga-progress-fill');
+  const statusEl = card.querySelector('.manga-status');
+
+  progressWrap.style.display = 'block';
+  statusEl.textContent = 'Descargando…';
+
+  try {
+    const { access_token } = await api.driveToken();
+    const resp = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${manga.drive_file_id}?alt=media`,
+      { headers: { Authorization: `Bearer ${access_token}` } }
+    );
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const contentType = resp.headers.get('Content-Type') || 'application/octet-stream';
+    const total = Number(resp.headers.get('Content-Length')) || 0;
+    const reader = resp.body.getReader();
+    const chunks = [];
+    let received = 0;
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+      if (total > 0) progressFill.style.width = `${Math.min(100, (received / total) * 100)}%`;
+    }
+
+    const blob = new Blob(chunks, { type: contentType });
+    await saveOffline(manga.id, manga.title, blob, contentType);
+
+    navigate(`/read/${manga.id}`);
+  } catch (err) {
+    progressWrap.style.display = 'none';
+    statusEl.textContent = 'Toca para descargar';
+    alert(`No se pudo descargar: ${err.message}`);
+  }
 }
 
 function escapeHtml(s) {
