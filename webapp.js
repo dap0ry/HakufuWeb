@@ -2,7 +2,7 @@ import { api, isLoggedIn, setSession, clearSession, getUsername } from './api.js
 import { listOfflineIds, saveOffline, applyBackground } from './offline-store.js';
 import {
   listLocalMangas, addLocalManga, removeLocalManga, getLocalManga,
-  listLocalCollections, createLocalCollection, removeLocalCollection, addMangaToCollection,
+  listLocalCollections, getLocalCollection, createLocalCollection, removeLocalCollection, addMangaToCollection,
 } from './local-library.js';
 import { extractCover } from './cover-extract.js';
 import { downloadFromDropbox } from './dropbox-content.js';
@@ -101,7 +101,7 @@ function currentRoute() {
 
 function navigate(path) { location.hash = path; }
 
-const APP_ROUTES = new Set(['library', 'account', 'settings', 'friends', 'read']);
+const APP_ROUTES = new Set(['library', 'account', 'settings', 'friends', 'read', 'local-collection']);
 
 // Añadida a la pantalla de inicio (Compartir → Añadir a pantalla de inicio
 // en iPhone, o el equivalente de escritorio/Android) — la portada de
@@ -142,7 +142,9 @@ async function render() {
   const page = document.createElement('div');
   page.className = 'page';
   webapp.appendChild(page);
-  webapp.appendChild(tabbar(name));
+  // Una colección local abierta es una sub-pantalla de Biblioteca — la
+  // pestaña activa de abajo debe seguir marcando "Biblioteca".
+  webapp.appendChild(tabbar(name === 'local-collection' ? 'library' : name));
 
   page.innerHTML = '<div class="empty-state">Cargando…</div>';
 
@@ -155,6 +157,8 @@ async function render() {
   } else if (name === 'friends') {
     const { renderFriends } = await import('./friends.js');
     renderFriends(page);
+  } else if (name === 'local-collection' && param) {
+    renderLocalCollectionDetail(page, param);
   } else {
     renderLibrary(page);
   }
@@ -272,16 +276,18 @@ async function renderLibrary(container) {
 
     const byId = new Map(localMangas.map((m) => [m.id, m]));
     const grouped = new Set();
+    localCollections.forEach((col) => col.mangaIds.forEach((id) => byId.has(id) && grouped.add(id)));
 
-    for (const col of localCollections) {
-      const items = col.mangaIds.map((id) => byId.get(id)).filter(Boolean);
-      items.forEach((m) => grouped.add(m.id));
-      container.appendChild(renderLocalMangaSection(container, col.name, items, col.id));
+    // Las colecciones se ven como carpetas (igual que en la app de
+    // escritorio) — clicar entra en su propia pantalla, y ahí es donde se
+    // añaden mangas directamente a esa colección.
+    if (localCollections.length > 0) {
+      container.appendChild(renderLocalCollectionFolders(localCollections, byId));
     }
 
     const loose = localMangas.filter((m) => !grouped.has(m.id));
     if (loose.length > 0 || localCollections.length === 0) {
-      container.appendChild(renderLocalMangaSection(container, UNCATEGORIZED_LABEL, loose, null));
+      container.appendChild(renderLocalMangaSection(container, UNCATEGORIZED_LABEL, loose));
     }
   }
 
@@ -323,7 +329,7 @@ function renderLibraryHeader(pageContainer) {
   fileInput.addEventListener('change', async () => {
     const file = fileInput.files[0];
     fileInput.value = '';
-    if (file) await addMangaFlow(pageContainer, file);
+    if (file) await addMangaFlow(file, null, () => renderLibrary(pageContainer));
   });
 
   return wrap;
@@ -331,10 +337,16 @@ function renderLibraryHeader(pageContainer) {
 
 // Sube un manga (PDF, CBZ o CBR) desde el propio móvil: extrae portada, pide
 // título y, si quieres, en qué colección local va. Todo se queda en
-// IndexedDB de este dispositivo. El CBR no se puede leer en el navegador
-// (no hay descompresor RAR en JS) pero sí guardarlo y descargarlo — mismo
-// comportamiento que ya tiene un CBR respaldado en Dropbox (ver reader.js).
-async function addMangaFlow(pageContainer, file) {
+// IndexedDB de este dispositivo.
+//
+// presetCollectionId: si se llama desde dentro de una colección (carpeta) ya
+// abierta, se añade directamente ahí sin preguntar — igual que en la app de
+// escritorio. Si se llama desde la Biblioteca general (undefined), pregunta
+// a qué colección va, si hay alguna creada.
+//
+// onDone: qué hacer al terminar (repintar la página que corresponda —
+// Biblioteca o la propia colección — cada llamante sabe la suya).
+async function addMangaFlow(file, presetCollectionId, onDone) {
   // file.type suele venir vacío para .cbr (el navegador no reconoce la
   // extensión) — antes esto hacía que un CBR se etiquetase como CBZ por
   // error. Se detecta siempre por extensión primero.
@@ -352,17 +364,19 @@ async function addMangaFlow(pageContainer, file) {
   const title = prompt('Título del manga:', defaultTitle);
   if (title === null) return; // cancelado
 
-  const collections = await listLocalCollections().catch(() => []);
-  let collectionId = null;
-  if (collections.length > 0) {
-    const names = collections.map((c) => c.name).join(', ');
-    const chosen = prompt(
-      `¿A qué colección lo añades? (escribe el nombre exacto, o deja en blanco para "Sin colección")\n\nColecciones: ${names}`,
-      ''
-    );
-    if (chosen && chosen.trim()) {
-      const match = collections.find((c) => c.name.toLowerCase() === chosen.trim().toLowerCase());
-      if (match) collectionId = match.id;
+  let collectionId = presetCollectionId || null;
+  if (!presetCollectionId) {
+    const collections = await listLocalCollections().catch(() => []);
+    if (collections.length > 0) {
+      const names = collections.map((c) => c.name).join(', ');
+      const chosen = prompt(
+        `¿A qué colección lo añades? (escribe el nombre exacto, o deja en blanco para "Sin colección")\n\nColecciones: ${names}`,
+        ''
+      );
+      if (chosen && chosen.trim()) {
+        const match = collections.find((c) => c.name.toLowerCase() === chosen.trim().toLowerCase());
+        if (match) collectionId = match.id;
+      }
     }
   }
 
@@ -370,7 +384,7 @@ async function addMangaFlow(pageContainer, file) {
   const id = await addLocalManga({ title: title.trim() || defaultTitle, fileBlob: file, mimeType, coverBlob });
   if (collectionId) await addMangaToCollection(collectionId, id);
 
-  renderLibrary(pageContainer);
+  onDone();
 }
 
 function renderMangaSection(title, mangas, offlineIds = new Set()) {
@@ -465,34 +479,16 @@ async function downloadManga(manga, card) {
   }
 }
 
-// Sección de mangas locales (creados desde este móvil): sin descarga, sin
-// estado offline/online — ya están aquí. Cada tarjeta tiene su propio botón
-// de borrar; borrar una colección local (no un manga) usa el botón del
-// encabezado de sección.
-function renderLocalMangaSection(pageContainer, title, mangas, collectionId) {
+// Sección de mangas locales sueltos (sin colección, creados desde este
+// móvil): sin descarga, sin estado offline/online — ya están aquí.
+function renderLocalMangaSection(pageContainer, title, mangas) {
   const section = document.createElement('div');
   section.style.marginBottom = '32px';
 
-  const headingRow = document.createElement('div');
-  headingRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;';
   const heading = document.createElement('h3');
   heading.textContent = title;
-  heading.style.cssText = 'font-size:13px;color:var(--secondary);text-transform:uppercase;letter-spacing:0.5px;';
-  headingRow.appendChild(heading);
-
-  if (collectionId) {
-    const delBtn = document.createElement('button');
-    delBtn.className = 'btn-ghost';
-    delBtn.textContent = 'Borrar colección';
-    delBtn.style.cssText = 'padding:4px 10px;font-size:11px;';
-    delBtn.addEventListener('click', async () => {
-      if (!confirm(`¿Borrar la colección "${title}"? Los mangas de dentro no se borran, quedan sin colección.`)) return;
-      await removeLocalCollection(collectionId);
-      renderLibrary(pageContainer);
-    });
-    headingRow.appendChild(delBtn);
-  }
-  section.appendChild(headingRow);
+  heading.style.cssText = 'font-size:13px;color:var(--secondary);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;';
+  section.appendChild(heading);
 
   const grid = document.createElement('div');
   grid.className = 'grid';
@@ -506,28 +502,128 @@ function renderLocalMangaSection(pageContainer, title, mangas, collectionId) {
   }
 
   for (const manga of mangas) {
-    const coverUrl = manga.coverBlob ? URL.createObjectURL(manga.coverBlob) : null;
+    grid.appendChild(renderLocalMangaCard(manga, () => renderLibrary(pageContainer)));
+  }
+
+  section.appendChild(grid);
+  return section;
+}
+
+// Tarjeta de un manga local — igual en la Biblioteca (mangas sueltos) y
+// dentro de una colección abierta; onChanged repinta lo que corresponda
+// en cada sitio tras borrar.
+function renderLocalMangaCard(manga, onChanged) {
+  const coverUrl = manga.coverBlob ? URL.createObjectURL(manga.coverBlob) : null;
+  const card = document.createElement('div');
+  card.className = 'manga-card';
+  card.innerHTML = `
+    <div class="manga-cover">
+      ${coverUrl ? `<img src="${coverUrl}" alt="" loading="lazy">` : escapeHtml(manga.title || 'Sin portada')}
+    </div>
+    <div class="manga-title">${escapeHtml(manga.title || 'Sin título')}</div>
+    <button class="btn-ghost local-delete-btn" style="padding:4px 10px;font-size:11px;margin-top:6px;width:100%;">Borrar</button>
+  `;
+  card.addEventListener('click', () => navigate(`/read/${manga.id}`));
+  card.querySelector('.local-delete-btn').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (!confirm(`¿Borrar "${manga.title || 'este manga'}"? Esta acción no se puede deshacer.`)) return;
+    await removeLocalManga(manga.id);
+    onChanged();
+  });
+  return card;
+}
+
+// Cuadrícula de colecciones locales como carpetas — clicar entra en su
+// propia pantalla (renderLocalCollectionDetail), igual que en la app de
+// escritorio. Aquí solo se ven, no se pueden borrar ni añadir mangas
+// directamente — eso vive dentro de cada carpeta.
+function renderLocalCollectionFolders(collections, byId) {
+  const section = document.createElement('div');
+  section.style.marginBottom = '32px';
+
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+
+  for (const col of collections) {
+    const count = col.mangaIds.filter((id) => byId.has(id)).length;
     const card = document.createElement('div');
     card.className = 'manga-card';
     card.innerHTML = `
-      <div class="manga-cover">
-        ${coverUrl ? `<img src="${coverUrl}" alt="" loading="lazy">` : escapeHtml(manga.title || 'Sin portada')}
-      </div>
-      <div class="manga-title">${escapeHtml(manga.title || 'Sin título')}</div>
-      <button class="btn-ghost local-delete-btn" style="padding:4px 10px;font-size:11px;margin-top:6px;width:100%;">Borrar</button>
+      <div class="manga-cover" style="display:flex;align-items:center;justify-content:center;font-size:40px;">📁</div>
+      <div class="manga-title">${escapeHtml(col.name)}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;">${count} manga${count === 1 ? '' : 's'}</div>
     `;
-    card.addEventListener('click', () => navigate(`/read/${manga.id}`));
-    card.querySelector('.local-delete-btn').addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (!confirm(`¿Borrar "${manga.title || 'este manga'}"? Esta acción no se puede deshacer.`)) return;
-      await removeLocalManga(manga.id);
-      renderLibrary(pageContainer);
-    });
+    card.addEventListener('click', () => navigate(`/local-collection/${col.id}`));
     grid.appendChild(card);
   }
 
   section.appendChild(grid);
   return section;
+}
+
+// Dentro de una carpeta: nombre, botón para borrar la colección (los mangas
+// de dentro no se borran, quedan sin colección) y "+ Manga" que añade
+// directamente aquí, sin preguntar a qué colección va.
+async function renderLocalCollectionDetail(container, collectionId) {
+  container.innerHTML = '<div class="empty-state">Cargando…</div>';
+
+  const col = await getLocalCollection(collectionId).catch(() => null);
+  if (!col) {
+    container.innerHTML = '<div class="empty-state">Esta colección ya no existe.</div>';
+    return;
+  }
+
+  const allMangas = await listLocalMangas().catch(() => []);
+  const byId = new Map(allMangas.map((m) => [m.id, m]));
+  const items = col.mangaIds.map((id) => byId.get(id)).filter(Boolean);
+
+  container.innerHTML = '';
+
+  const header = document.createElement('div');
+  header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:8px;flex-wrap:wrap;';
+  header.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="btn-ghost" id="back-btn" style="padding:9px 14px;font-size:12px;">← Biblioteca</button>
+      <h2 style="margin-bottom:0;">📁 ${escapeHtml(col.name)}</h2>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-ghost" id="delete-collection-btn" style="padding:9px 14px;font-size:12px;">Borrar colección</button>
+      <button class="btn" id="add-manga-btn" style="padding:9px 14px;font-size:12px;">+ Manga</button>
+      <input type="file" id="add-manga-input" style="display:none;">
+    </div>
+  `;
+  container.appendChild(header);
+
+  header.querySelector('#back-btn').addEventListener('click', () => navigate('/library'));
+  header.querySelector('#delete-collection-btn').addEventListener('click', async () => {
+    if (!confirm(`¿Borrar la colección "${col.name}"? Los mangas de dentro no se borran, quedan sin colección.`)) return;
+    await removeLocalCollection(collectionId);
+    navigate('/library');
+  });
+
+  const fileInput = header.querySelector('#add-manga-input');
+  header.querySelector('#add-manga-btn').addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    fileInput.value = '';
+    if (file) await addMangaFlow(file, collectionId, () => renderLocalCollectionDetail(container, collectionId));
+  });
+
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+
+  if (items.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = 'Sin mangas todavía — añade uno con el botón de arriba.';
+    grid.appendChild(empty);
+  }
+
+  for (const manga of items) {
+    grid.appendChild(renderLocalMangaCard(manga, () => renderLocalCollectionDetail(container, collectionId)));
+  }
+
+  container.appendChild(grid);
 }
 
 function escapeHtml(s) {

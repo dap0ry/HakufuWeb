@@ -3,11 +3,12 @@
 // mechanism behind "download for offline reading" on iPhone — IndexedDB blobs,
 // not files on disk.
 const DB_NAME = 'hakufu-offline';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const STORE = 'mangas';
 const SETTINGS_STORE = 'settings'; // clave/valor sencillo — hoy solo el fondo de pantalla
 const LOCAL_MANGAS_STORE      = 'localMangas';      // mangas creados desde el propio móvil
 const LOCAL_COLLECTIONS_STORE = 'localCollections'; // colecciones creadas desde el propio móvil
+const PROGRESS_STORE = 'readingProgress'; // última página leída, por id de manga (local o de Dropbox)
 
 // Exportada para que local-library.js pueda abrir sus propias transacciones
 // contra localMangas/localCollections sin duplicar el open()/upgrade.
@@ -27,6 +28,9 @@ export function openDb() {
       }
       if (!db.objectStoreNames.contains(LOCAL_COLLECTIONS_STORE)) {
         db.createObjectStore(LOCAL_COLLECTIONS_STORE, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(PROGRESS_STORE)) {
+        db.createObjectStore(PROGRESS_STORE, { keyPath: 'id' });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -87,6 +91,31 @@ export async function removeOffline(id) {
 export async function offlineStorageEstimate() {
   if (!navigator.storage?.estimate) return null;
   try { return await navigator.storage.estimate(); } catch { return null; }
+}
+
+// ── Progreso de lectura ──────────────────────────────────────────────────
+// Qué página se dejó vista por última vez, por manga — local al dispositivo,
+// no se sincroniza con la cuenta. Se guarda en cada cambio de página (no
+// solo al salir), así que ni cerrar la pestaña sin querer lo pierde.
+
+export async function saveProgress(mangaId, page) {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PROGRESS_STORE, 'readwrite');
+    tx.objectStore(PROGRESS_STORE).put({ id: mangaId, page, updatedAt: Date.now() });
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function getProgress(mangaId) {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PROGRESS_STORE, 'readonly');
+    const req = tx.objectStore(PROGRESS_STORE).get(mangaId);
+    req.onsuccess = () => resolve(req.result ? req.result.page : null);
+    req.onerror = () => reject(req.error);
+  });
 }
 
 // ── Fondo de pantalla personalizado ─────────────────────────────────────

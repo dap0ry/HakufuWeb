@@ -84,6 +84,16 @@ export function listLocalCollections() {
   return getAll(COLLECTIONS_STORE);
 }
 
+export async function getLocalCollection(id) {
+  return withStore(COLLECTIONS_STORE, 'readonly', (store) =>
+    new Promise((resolve, reject) => {
+      const req = store.get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    })
+  );
+}
+
 export async function removeLocalCollection(id) {
   // Solo borra la colección — los mangas que tuviera dentro se quedan,
   // pasan a "sin colección" (igual que en la app de escritorio).

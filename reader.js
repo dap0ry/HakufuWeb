@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { getOffline } from './offline-store.js';
+import { getOffline, getProgress, saveProgress } from './offline-store.js';
 import { downloadFromDropbox } from './dropbox-content.js';
 import { getLocalManga } from './local-library.js';
 
@@ -86,12 +86,16 @@ export async function renderReader(root, mangaId) {
 
     titleEl.textContent = title || '';
 
+    // Por dónde se dejó la última vez — se restaura al abrir y se va
+    // actualizando en cada cambio de página, no solo al salir con el botón.
+    const savedPage = await getProgress(mangaId).catch(() => null);
+
     if (contentType.includes('pdf')) {
-      await openPdf(wrap, blob);
+      await openPdf(wrap, blob, mangaId, savedPage);
     } else if (contentType.includes('zip')) {
-      await openCbz(wrap, blob);
+      await openCbz(wrap, blob, mangaId, savedPage);
     } else if (contentType.includes('rar')) {
-      await openCbr(wrap, blob);
+      await openCbr(wrap, blob, mangaId, savedPage);
     } else {
       openUnsupported(wrap, blob, title);
     }
@@ -101,7 +105,7 @@ export async function renderReader(root, mangaId) {
   }
 }
 
-async function openPdf(wrap, blob) {
+async function openPdf(wrap, blob, mangaId, savedPage) {
   const pageEl = wrap.querySelector('#reader-page');
   const controls = wrap.querySelector('#reader-controls');
   const indicator = wrap.querySelector('#page-indicator');
@@ -112,7 +116,9 @@ async function openPdf(wrap, blob) {
   const buffer = await blob.arrayBuffer();
   const doc = await pdfjsLib.getDocument({ data: buffer }).promise;
 
-  let current = 1;
+  // Página guardada (1-indexada, como numPages) si hay y sigue siendo válida
+  // para este archivo — si no, empieza desde el principio.
+  let current = (savedPage != null) ? Math.min(Math.max(savedPage, 1), doc.numPages) : 1;
   const canvas = document.createElement('canvas');
   pageEl.innerHTML = '';
   pageEl.appendChild(canvas);
@@ -125,6 +131,7 @@ async function openPdf(wrap, blob) {
     canvas.height = viewport.height;
     await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
     indicator.textContent = `${num} / ${doc.numPages}`;
+    saveProgress(mangaId, num).catch(() => {});
   }
 
   function fitScale(page) {
@@ -144,7 +151,7 @@ async function openPdf(wrap, blob) {
   await renderPage(current);
 }
 
-async function openCbz(wrap, blob) {
+async function openCbz(wrap, blob, mangaId, savedPage) {
   const pageEl = wrap.querySelector('#reader-page');
   const controls = wrap.querySelector('#reader-controls');
   const indicator = wrap.querySelector('#page-indicator');
@@ -159,7 +166,9 @@ async function openCbz(wrap, blob) {
   if (imageEntries.length === 0) throw new Error('El archivo CBZ no contiene imágenes reconocibles.');
 
   const urls = new Array(imageEntries.length).fill(null);
-  let current = 0;
+  // Página guardada (0-indexada) si hay y sigue siendo válida para este
+  // archivo — si no, empieza desde el principio.
+  let current = (savedPage != null) ? Math.min(Math.max(savedPage, 0), imageEntries.length - 1) : 0;
 
   const img = document.createElement('img');
   pageEl.innerHTML = '';
@@ -173,6 +182,7 @@ async function openCbz(wrap, blob) {
     }
     img.src = urls[i];
     indicator.textContent = `${i + 1} / ${imageEntries.length}`;
+    saveProgress(mangaId, i).catch(() => {});
   }
 
   wrap.querySelector('#prev-btn').addEventListener('click', () => {
@@ -185,7 +195,7 @@ async function openCbz(wrap, blob) {
   await showPage(current);
 }
 
-async function openCbr(wrap, blob) {
+async function openCbr(wrap, blob, mangaId, savedPage) {
   const pageEl = wrap.querySelector('#reader-page');
   const controls = wrap.querySelector('#reader-controls');
   const indicator = wrap.querySelector('#page-indicator');
@@ -204,7 +214,9 @@ async function openCbr(wrap, blob) {
   if (imageEntries.length === 0) throw new Error('El archivo CBR no contiene imágenes reconocibles.');
 
   const urls = new Array(imageEntries.length).fill(null);
-  let current = 0;
+  // Página guardada (0-indexada) si hay y sigue siendo válida para este
+  // archivo — si no, empieza desde el principio.
+  let current = (savedPage != null) ? Math.min(Math.max(savedPage, 0), imageEntries.length - 1) : 0;
 
   const img = document.createElement('img');
   pageEl.innerHTML = '';
@@ -221,6 +233,7 @@ async function openCbr(wrap, blob) {
     }
     img.src = urls[i];
     indicator.textContent = `${i + 1} / ${imageEntries.length}`;
+    saveProgress(mangaId, i).catch(() => {});
   }
 
   wrap.querySelector('#prev-btn').addEventListener('click', () => {
