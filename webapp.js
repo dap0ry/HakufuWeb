@@ -3,6 +3,7 @@ import { listOfflineIds, saveOffline, applyBackground } from './offline-store.js
 import {
   listLocalMangas, addLocalManga, removeLocalManga, getLocalManga,
   listLocalCollections, getLocalCollection, createLocalCollection, removeLocalCollection, addMangaToCollection,
+  updateLocalMangaCover,
 } from './local-library.js';
 import { extractCover } from './cover-extract.js';
 import { downloadFromDropbox } from './dropbox-content.js';
@@ -266,6 +267,7 @@ async function renderLibrary(container) {
   // ── Biblioteca local (creada desde este móvil, nunca sale de aquí) ──────
   const localMangas = await listLocalMangas().catch(() => []);
   const localCollections = await listLocalCollections().catch(() => []);
+  backfillMissingCovers(localMangas, () => renderLibrary(container));
 
   if (localMangas.length > 0 || localCollections.length > 0) {
     hadContent = true;
@@ -333,6 +335,24 @@ function renderLibraryHeader(pageContainer) {
   });
 
   return wrap;
+}
+
+// Rellena en segundo plano la portada de mangas locales que se guardaron sin
+// una — el caso típico es un CBR añadido antes de que existiera fromCbr()
+// (llegó en un commit posterior a cuando se permitió añadir CBR). No hace
+// falta re-añadir el manga: se reintenta la extracción con el archivo que
+// ya está guardado, y si sale algo se persiste y se avisa para repintar.
+function backfillMissingCovers(mangas, onCoverFound) {
+  const pending = mangas.filter((m) => !m.coverBlob && m.fileBlob);
+  if (pending.length === 0) return;
+
+  Promise.all(pending.map(async (manga) => {
+    const coverBlob = await extractCover(manga.fileBlob, manga.mimeType).catch(() => null);
+    if (coverBlob) await updateLocalMangaCover(manga.id, coverBlob);
+    return !!coverBlob;
+  })).then((found) => {
+    if (found.some(Boolean)) onCoverFound();
+  });
 }
 
 // Sube un manga (PDF, CBZ o CBR) desde el propio móvil: extrae portada, pide
@@ -606,6 +626,7 @@ async function renderLocalCollectionDetail(container, collectionId) {
   const allMangas = await listLocalMangas().catch(() => []);
   const byId = new Map(allMangas.map((m) => [m.id, m]));
   const items = col.mangaIds.map((id) => byId.get(id)).filter(Boolean);
+  backfillMissingCovers(items, () => renderLocalCollectionDetail(container, collectionId));
 
   container.innerHTML = '';
 

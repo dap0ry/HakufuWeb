@@ -58,6 +58,25 @@ export function listLocalMangas() {
   return getAll(MANGAS_STORE);
 }
 
+// Rellena la portada a posteriori de un manga que se guardó sin una — por
+// ejemplo, un CBR añadido antes de que supiéramos extraer su portada (esa
+// función llegó en un commit posterior). No hace falta re-añadir el manga.
+export async function updateLocalMangaCover(id, coverBlob) {
+  return withStore(MANGAS_STORE, 'readwrite', (store) =>
+    new Promise((resolve, reject) => {
+      const req = store.get(id);
+      req.onsuccess = () => {
+        const manga = req.result;
+        if (!manga) { resolve(); return; }
+        manga.coverBlob = coverBlob;
+        store.put(manga);
+        resolve();
+      };
+      req.onerror = () => reject(req.error);
+    })
+  );
+}
+
 export async function removeLocalManga(id) {
   await withStore(MANGAS_STORE, 'readwrite', (store) => store.delete(id));
   // Quitarlo también de cualquier colección que lo tuviera — si no, queda

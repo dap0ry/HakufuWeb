@@ -4,7 +4,7 @@
 // fall back to whatever was last cached. Never touches /api or content.dropboxapi.com
 // (those need to stay live, or are handled by offline-store.js's IndexedDB
 // cache instead).
-const CACHE_NAME = 'hakufu-shell-v14';
+const CACHE_NAME = 'hakufu-shell-v15';
 const SHELL_FILES = ['/', '/index.html', '/webapp.js', '/api.js', '/account.js', '/friends.js', '/settings.js', '/reader.js', '/offline-store.js', '/local-library.js', '/dropbox-content.js', '/cover-extract.js', '/manifest.json'];
 
 self.addEventListener('install', (event) => {
