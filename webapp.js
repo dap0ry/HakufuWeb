@@ -545,13 +545,13 @@ function renderLocalCollectionFolders(collections, byId) {
   grid.className = 'grid';
 
   for (const col of collections) {
-    const count = col.mangaIds.filter((id) => byId.has(id)).length;
+    const items = col.mangaIds.map((id) => byId.get(id)).filter(Boolean);
     const card = document.createElement('div');
     card.className = 'manga-card';
     card.innerHTML = `
-      <div class="manga-cover" style="display:flex;align-items:center;justify-content:center;font-size:40px;">📁</div>
+      <div class="manga-cover" style="overflow:visible;padding:0;">${stackedCoverHtml(items)}</div>
       <div class="manga-title">${escapeHtml(col.name)}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px;">${count} manga${count === 1 ? '' : 's'}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;">${items.length} manga${items.length === 1 ? '' : 's'}</div>
     `;
     card.addEventListener('click', () => navigate(`/local-collection/${col.id}`));
     grid.appendChild(card);
@@ -559,6 +559,36 @@ function renderLocalCollectionFolders(collections, byId) {
 
   section.appendChild(grid);
   return section;
+}
+
+// Portada de una carpeta: hasta 3 mangas en abanico, uno detrás de otro con
+// un poco de rotación — el mismo efecto 3D que ya tiene la app de
+// escritorio para las colecciones, aquí en CSS puro (mismos ángulos y
+// proporciones, solo que en % en vez de píxeles fijos por lo del grid
+// responsive). Sin portadas disponibles, cae a la carpeta de siempre.
+function stackedCoverHtml(mangas) {
+  const covers = mangas.filter((m) => m.coverBlob).slice(0, 3).map((m) => URL.createObjectURL(m.coverBlob));
+  if (covers.length === 0) {
+    return `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:40px;">📁</div>`;
+  }
+
+  // covers[0] va delante (arriba del todo); si hay más, se abren en abanico
+  // detrás hacia la izquierda, cada vez un poco más pequeñas y giradas.
+  const layers = [];
+  if (covers[2]) {
+    layers.push(`<img src="${covers[2]}" style="position:absolute;inset:6%;width:88%;height:88%;object-fit:cover;
+      border-radius:6px;border:1px solid var(--border);transform-origin:50% 100%;
+      transform:rotate(-4deg) translate(8%,-6%);z-index:1;">`);
+  }
+  if (covers[1]) {
+    layers.push(`<img src="${covers[1]}" style="position:absolute;inset:3%;width:93%;height:93%;object-fit:cover;
+      border-radius:6px;border:1px solid var(--border);transform-origin:50% 100%;
+      transform:rotate(-2deg) translate(4%,-3%);z-index:2;">`);
+  }
+  layers.push(`<img src="${covers[0]}" style="position:absolute;inset:1%;width:98%;height:98%;object-fit:cover;
+    border-radius:6px;border:1px solid var(--border);z-index:3;box-shadow:0 4px 14px rgba(0,0,0,0.35);">`);
+
+  return layers.join('');
 }
 
 // Dentro de una carpeta: nombre, botón para borrar la colección (los mangas
