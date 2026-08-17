@@ -303,7 +303,11 @@ function renderLibraryHeader(pageContainer) {
     <div style="display:flex;gap:8px;">
       <button class="btn-ghost" id="new-collection-btn" style="padding:9px 14px;font-size:12px;">+ Colección</button>
       <button class="btn" id="add-manga-btn" style="padding:9px 14px;font-size:12px;">+ Manga</button>
-      <input type="file" id="add-manga-input" accept=".pdf,.cbz,.cbr,application/pdf,application/zip,application/vnd.rar,application/x-rar-compressed,application/x-rar" style="display:none;">
+      <!-- Sin accept=".cbr,..." a propósito: iOS no tiene un UTI registrado
+           para .cbr, así que el selector de Archivos los muestra en gris
+           (no seleccionables) en cuanto se lo restringes por tipo. Se valida
+           el formato después, ya con el archivo elegido, en addMangaFlow. -->
+      <input type="file" id="add-manga-input" style="display:none;">
     </div>
   `;
 
