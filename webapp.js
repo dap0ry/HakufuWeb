@@ -263,7 +263,7 @@ async function renderLibrary(container) {
   const localMangas = await listLocalMangas().catch(() => []);
   const localCollections = await listLocalCollections().catch(() => []);
 
-  if (localMangas.length > 0) {
+  if (localMangas.length > 0 || localCollections.length > 0) {
     hadContent = true;
     const heading = document.createElement('h3');
     heading.textContent = 'En este dispositivo';
@@ -303,7 +303,7 @@ function renderLibraryHeader(pageContainer) {
     <div style="display:flex;gap:8px;">
       <button class="btn-ghost" id="new-collection-btn" style="padding:9px 14px;font-size:12px;">+ Colección</button>
       <button class="btn" id="add-manga-btn" style="padding:9px 14px;font-size:12px;">+ Manga</button>
-      <input type="file" id="add-manga-input" accept=".pdf,.cbz,application/pdf,application/zip" style="display:none;">
+      <input type="file" id="add-manga-input" accept=".pdf,.cbz,.cbr,application/pdf,application/zip,application/vnd.rar,application/x-rar-compressed,application/x-rar" style="display:none;">
     </div>
   `;
 
@@ -325,17 +325,24 @@ function renderLibraryHeader(pageContainer) {
   return wrap;
 }
 
-// Sube un manga (PDF o CBZ) desde el propio móvil: extrae portada, pide
+// Sube un manga (PDF, CBZ o CBR) desde el propio móvil: extrae portada, pide
 // título y, si quieres, en qué colección local va. Todo se queda en
-// IndexedDB de este dispositivo.
+// IndexedDB de este dispositivo. El CBR no se puede leer en el navegador
+// (no hay descompresor RAR en JS) pero sí guardarlo y descargarlo — mismo
+// comportamiento que ya tiene un CBR respaldado en Dropbox (ver reader.js).
 async function addMangaFlow(pageContainer, file) {
-  const mimeType = file.type
-    || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/zip');
-
-  if (!mimeType.includes('pdf') && !mimeType.includes('zip')) {
-    alert('Solo se pueden añadir PDF o CBZ desde el navegador — CBR todavía no se puede leer aquí.');
+  // file.type suele venir vacío para .cbr (el navegador no reconoce la
+  // extensión) — antes esto hacía que un CBR se etiquetase como CBZ por
+  // error. Se detecta siempre por extensión primero.
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (!['pdf', 'cbz', 'cbr'].includes(ext)) {
+    alert('Solo se pueden añadir PDF, CBZ o CBR desde el navegador.');
     return;
   }
+
+  const mimeType = ext === 'pdf' ? 'application/pdf'
+    : ext === 'cbz' ? 'application/zip'
+    : 'application/vnd.rar'; // cbr
 
   const defaultTitle = file.name.replace(/\.[^.]+$/, '');
   const title = prompt('Título del manga:', defaultTitle);
