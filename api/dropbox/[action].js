@@ -24,7 +24,15 @@ async function status(req, res) {
   const me = getCurrentUser(req);
   if (!me) return res.status(401).json({ detail: 'Token inválido o expirado' });
 
-  const rows = await sql`select connected_at from dropbox_connections where username = ${me}`;
+  let rows;
+  try {
+    rows = await sql`select connected_at from dropbox_connections where username = ${me}`;
+  } catch {
+    // Probable causa: db/migrate-dropbox.sql todavía no se ha ejecutado y la
+    // tabla dropbox_connections no existe. Devolver un 503 con detalle en vez
+    // de dejar que el cliente reciba un 500 opaco de Vercel.
+    return res.status(503).json({ detail: 'Dropbox aún no está disponible — falta migrar la base de datos' });
+  }
   const row = rows[0];
   return res.status(200).json({ connected: !!row, connected_at: row ? row.connected_at : null });
 }
@@ -33,7 +41,13 @@ async function token(req, res) {
   const me = getCurrentUser(req);
   if (!me) return res.status(401).json({ detail: 'Token inválido o expirado' });
 
-  const rows = await sql`select refresh_token from dropbox_connections where username = ${me}`;
+  let rows;
+  try {
+    rows = await sql`select refresh_token from dropbox_connections where username = ${me}`;
+  } catch {
+    // Ver comentario equivalente en status() — misma causa probable.
+    return res.status(503).json({ detail: 'Dropbox aún no está disponible — falta migrar la base de datos' });
+  }
   const row = rows[0];
   if (!row) return res.status(404).json({ detail: 'Dropbox no está conectado' });
 

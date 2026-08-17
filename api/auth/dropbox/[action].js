@@ -1,6 +1,7 @@
-// /api/auth/dropbox/start + /api/auth/dropbox/callback in one function. Same
-// external paths — this is the exact redirect URI registered in the Dropbox
-// App Console, unaffected by this internal reorganization.
+// /api/auth/dropbox/start + /api/auth/dropbox/callback in one function. This
+// path (/api/auth/dropbox/*) replaced the old /api/auth/google/* path, which
+// is why the redirect URI had to be re-registered in the Dropbox App Console
+// to match — it is NOT the same external path as before the migration.
 const { sql } = require('../../../lib/db');
 const { buildConsentUrl, exchangeCodeForTokens } = require('../../../lib/dropbox');
 

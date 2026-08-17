@@ -1,7 +1,7 @@
 // App-shell cache, network-first. A previous cache-first version could get
 // stuck serving a stale build even after fixes were deployed — network-first
 // means online visitors always get the latest; only actually-offline visits
-// fall back to whatever was last cached. Never touches /api or googleapis.com
+// fall back to whatever was last cached. Never touches /api or content.dropboxapi.com
 // (those need to stay live, or are handled by offline-store.js's IndexedDB
 // cache instead).
 const CACHE_NAME = 'hakufu-shell-v9';

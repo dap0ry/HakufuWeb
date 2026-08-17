@@ -424,7 +424,7 @@ async function downloadManga(manga, card) {
 
     // Dropbox no manda Content-Type útil en /files/download — el propio
     // manga.dropbox_path ya trae la extensión, así que se deduce de ahí en
-    // vez de confiar en la cabecera (a diferencia de Dropbox, que sí la daba).
+    // vez de confiar en la cabecera (a diferencia de Drive, que sí la daba).
     const ext = (manga.dropbox_path.split('.').pop() || '').toLowerCase();
     const contentType = ext === 'pdf' ? 'application/pdf'
       : (ext === 'cbz' || ext === 'zip') ? 'application/zip'

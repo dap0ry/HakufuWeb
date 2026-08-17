@@ -3,11 +3,15 @@
 // para descargar mangas respaldados. La subida real solo la hace la app de
 // escritorio (ver Hakufu/Services/DropboxService.cs); aquí solo se lee.
 
-// Los valores de la cabecera Dropbox-API-Arg deben ser ASCII de 7 bits — los
-// títulos de manga pueden llevar tildes/ñ, así que hay que codificar el JSON
-// con encodeURIComponent antes de meterlo en la cabecera.
+// Dropbox exige el valor de la cabecera Dropbox-API-Arg como JSON en crudo,
+// solo con los caracteres no-ASCII (y 0x7F) escapados como \uXXXX — nunca
+// percent-encoded. encodeURIComponent codificaba también los caracteres
+// estructurales del JSON ({, ", :, /), lo que hacía que Dropbox no pudiera
+// parsear la cabecera como JSON en absoluto.
+const NON_ASCII = /[\u007f-\uffff]/g;
 export function dropboxArgHeader(args) {
-  return encodeURIComponent(JSON.stringify(args));
+  return JSON.stringify(args).replace(NON_ASCII,
+    (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
 }
 
 export async function downloadFromDropbox(accessToken, path) {
