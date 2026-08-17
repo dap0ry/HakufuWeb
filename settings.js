@@ -139,6 +139,7 @@ async function renderOfflineCard() {
         const ext = (manga.dropbox_path.split('.').pop() || '').toLowerCase();
         const mimeType = ext === 'pdf' ? 'application/pdf'
           : (ext === 'cbz' || ext === 'zip') ? 'application/zip'
+          : (ext === 'cbr' || ext === 'rar') ? 'application/vnd.rar'
           : 'application/octet-stream';
         const blob = await resp.blob();
         await saveOffline(manga.id, manga.title, blob, mimeType);

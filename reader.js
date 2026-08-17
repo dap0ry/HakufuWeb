@@ -3,12 +3,17 @@ import { getOffline } from './offline-store.js';
 import { downloadFromDropbox } from './dropbox-content.js';
 import { getLocalManga } from './local-library.js';
 
-// v1 scope: PDF and CBZ render page-by-page in the browser. CBR (RAR) has no
-// reliable pure-JS decoder, so it falls back to a plain download button instead
-// of a paginated view.
+// PDF, CBZ y CBR se leen página a página en el navegador. El CBR usa
+// node-unrar-js (el propio unrar de RARLab compilado a WASM) para
+// descomprimir — mismo patrón que JSZip para CBZ, pero aquí hay que cargar
+// también el binario .wasm por separado desde el CDN (node-unrar-js lo pide
+// así explícitamente para uso en navegador, en vez de resolverlo él solo
+// como hace en Node).
 const PDFJS_URL        = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs';
 const PDFJS_WORKER_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.mjs';
 const JSZIP_URL         = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm';
+const UNRAR_JS_URL      = 'https://cdn.jsdelivr.net/npm/node-unrar-js@2.0.2/+esm';
+const UNRAR_WASM_URL    = 'https://cdn.jsdelivr.net/npm/node-unrar-js@2.0.2/esm/js/unrar.wasm';
 
 export async function renderReader(root, mangaId) {
   root.innerHTML = '';
@@ -71,7 +76,10 @@ export async function renderReader(root, mangaId) {
           throw new Error('No se pudo descargar el archivo desde Dropbox.');
         });
         const ext = (manga.dropbox_path.split('.').pop() || '').toLowerCase();
-        contentType = ext === 'pdf' ? 'application/pdf' : (ext === 'cbz' || ext === 'zip') ? 'application/zip' : '';
+        contentType = ext === 'pdf' ? 'application/pdf'
+          : (ext === 'cbz' || ext === 'zip') ? 'application/zip'
+          : (ext === 'cbr' || ext === 'rar') ? 'application/vnd.rar'
+          : '';
         blob = await resp.blob();
       }
     }
@@ -82,6 +90,8 @@ export async function renderReader(root, mangaId) {
       await openPdf(wrap, blob);
     } else if (contentType.includes('zip')) {
       await openCbz(wrap, blob);
+    } else if (contentType.includes('rar')) {
+      await openCbr(wrap, blob);
     } else {
       openUnsupported(wrap, blob, title);
     }
@@ -175,14 +185,62 @@ async function openCbz(wrap, blob) {
   await showPage(current);
 }
 
+async function openCbr(wrap, blob) {
+  const pageEl = wrap.querySelector('#reader-page');
+  const controls = wrap.querySelector('#reader-controls');
+  const indicator = wrap.querySelector('#page-indicator');
+
+  const [{ createExtractorFromData }, data, wasmBinary] = await Promise.all([
+    import(/* webpackIgnore: true */ UNRAR_JS_URL),
+    blob.arrayBuffer(),
+    fetch(UNRAR_WASM_URL).then((r) => r.arrayBuffer()),
+  ]);
+  const extractor = await createExtractorFromData({ data, wasmBinary });
+
+  const imageEntries = [...extractor.getFileList().fileHeaders]
+    .filter((h) => !h.flags.directory && /\.(jpe?g|png|gif|webp)$/i.test(h.name))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+  if (imageEntries.length === 0) throw new Error('El archivo CBR no contiene imágenes reconocibles.');
+
+  const urls = new Array(imageEntries.length).fill(null);
+  let current = 0;
+
+  const img = document.createElement('img');
+  pageEl.innerHTML = '';
+  pageEl.appendChild(img);
+  controls.style.display = 'flex';
+
+  // A diferencia de JSZip (openCbz), extractor.extract() aquí es síncrono —
+  // el mismo extractor se reutiliza para descomprimir cada página bajo
+  // demanda, en vez de todo el CBR de golpe al abrirlo.
+  function showPage(i) {
+    if (!urls[i]) {
+      const [extracted] = [...extractor.extract({ files: [imageEntries[i].name] }).files];
+      urls[i] = URL.createObjectURL(new Blob([extracted.extraction]));
+    }
+    img.src = urls[i];
+    indicator.textContent = `${i + 1} / ${imageEntries.length}`;
+  }
+
+  wrap.querySelector('#prev-btn').addEventListener('click', () => {
+    if (current > 0) { current--; showPage(current); }
+  });
+  wrap.querySelector('#next-btn').addEventListener('click', () => {
+    if (current < imageEntries.length - 1) { current++; showPage(current); }
+  });
+
+  showPage(current);
+}
+
 function openUnsupported(wrap, blob, title) {
   const pageEl = wrap.querySelector('#reader-page');
   wrap.classList.remove('controls-hidden'); // sin paginación, no hay nada que ocultar
   const url = URL.createObjectURL(blob);
   pageEl.innerHTML = `
     <div class="empty-state">
-      <p style="margin-bottom:16px">Este formato (CBR) no se puede leer todavía directamente en el navegador.</p>
-      <a class="btn" href="${url}" download="${escapeHtml(title || 'manga')}.cbr">Descargar archivo</a>
+      <p style="margin-bottom:16px">Este formato no se puede leer directamente en el navegador.</p>
+      <a class="btn" href="${url}" download="${escapeHtml(title || 'manga')}">Descargar archivo</a>
     </div>
   `;
 }

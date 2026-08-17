@@ -439,6 +439,7 @@ async function downloadManga(manga, card) {
     const ext = (manga.dropbox_path.split('.').pop() || '').toLowerCase();
     const contentType = ext === 'pdf' ? 'application/pdf'
       : (ext === 'cbz' || ext === 'zip') ? 'application/zip'
+      : (ext === 'cbr' || ext === 'rar') ? 'application/vnd.rar'
       : 'application/octet-stream';
     const total = Number(resp.headers.get('Content-Length')) || 0;
     const reader = resp.body.getReader();
