@@ -42,7 +42,7 @@ export async function renderReader(root, mangaId) {
   wrap.querySelector('#exit-btn').addEventListener('click', () => { location.hash = '/library'; });
 
   try {
-    // Un manga local (creado desde este propio móvil) nunca pasa por Drive —
+    // Un manga local (creado desde este propio móvil) nunca pasa por Dropbox —
     // se lee directamente de su blob en IndexedDB.
     const local = await getLocalManga(mangaId);
 
@@ -60,7 +60,7 @@ export async function renderReader(root, mangaId) {
       title = manga.title;
 
       // Si ya se descargó para offline, se lee de ahí directamente — ni token
-      // de Drive ni red, funciona sin conexión.
+      // de Dropbox ni red, funciona sin conexión.
       const cached = await getOffline(manga.id);
       if (cached) {
         blob = cached.blob;

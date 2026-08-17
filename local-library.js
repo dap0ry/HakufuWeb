@@ -1,7 +1,7 @@
 import { openDb } from './offline-store.js';
 
 // Biblioteca local del propio móvil — separada de la biblioteca sincronizada
-// por Drive (esa la gestiona api.getLibrary()/offline-store.js "mangas").
+// por Dropbox (esa la gestiona api.getLibrary()/offline-store.js "mangas").
 // Todo lo de aquí vive solo en este dispositivo: crear una colección o subir
 // un manga desde el móvil nunca toca la red ni el backend.
 const MANGAS_STORE      = 'localMangas';

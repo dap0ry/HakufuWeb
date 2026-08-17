@@ -63,7 +63,7 @@ function renderAccountBox() {
       ${isRegister
         ? `¿Ya tienes cuenta? <button id="switch-link">Inicia sesión</button>`
         : `¿No tienes cuenta? <button id="switch-link">Regístrate</button>`}
-      · para leer tu biblioteca y respaldarla en Google Drive.
+      · para leer tu biblioteca y respaldarla en Dropbox.
     </div>
   `;
 
@@ -225,7 +225,7 @@ async function renderLibrary(container) {
   try {
     data = await api.getLibrary();
   } catch {
-    data = null; // sin nada respaldado en Drive todavía — no es un error fatal,
+    data = null; // sin nada respaldado en Dropbox todavía — no es un error fatal,
                  // la biblioteca local (de este móvil) puede seguir mostrándose
   }
 
@@ -243,7 +243,7 @@ async function renderLibrary(container) {
     const grouped = new Set();
     const offlineIds = new Set(await listOfflineIds().catch(() => []));
 
-    // Mismo agrupado que la carpeta de Drive: una sección por colección, con
+    // Mismo agrupado que la carpeta de Dropbox: una sección por colección, con
     // los mangas sueltos al final bajo "Sin colección" — así la biblioteca
     // web se ve igual que como queda organizado el respaldo.
     for (const col of collections) {
@@ -424,7 +424,7 @@ async function downloadManga(manga, card) {
 
     // Dropbox no manda Content-Type útil en /files/download — el propio
     // manga.dropbox_path ya trae la extensión, así que se deduce de ahí en
-    // vez de confiar en la cabecera (a diferencia de Drive, que sí la daba).
+    // vez de confiar en la cabecera (a diferencia de Dropbox, que sí la daba).
     const ext = (manga.dropbox_path.split('.').pop() || '').toLowerCase();
     const contentType = ext === 'pdf' ? 'application/pdf'
       : (ext === 'cbz' || ext === 'zip') ? 'application/zip'
